@@ -789,7 +789,7 @@ func (l *LightningWallet) handleContributionMsg(req *addContributionMsg) {
 			return
 		}
 
-		// TODO(davec): Port
+		// TODO(jrick): Port -- Need to adjust ComputeInputScript
 		/*
 			txIn.SignatureScript = inputScript.ScriptSig
 			txIn.Witness = inputScript.Witness
