@@ -5,8 +5,8 @@ import (
 	prand "math/rand"
 	"time"
 
-	"github.com/roasbeef/btcd/btcec"
-	"github.com/roasbeef/btcutil"
+	"github.com/decred/dcrd/dcrec/secp256k1"
+	"github.com/decred/dcrd/dcrutil"
 )
 
 // ConstrainedPrefAttachment is an implementation of the AttachmentHeuristic
@@ -21,8 +21,8 @@ import (
 //
 // TODO(roasbeef): BA, with k=-3
 type ConstrainedPrefAttachment struct {
-	minChanSize btcutil.Amount
-	maxChanSize btcutil.Amount
+	minChanSize dcrutil.Amount
+	maxChanSize dcrutil.Amount
 
 	chanLimit uint16
 
@@ -33,7 +33,7 @@ type ConstrainedPrefAttachment struct {
 // ConstrainedPrefAttachment heuristics given bounds on allowed channel sizes,
 // and an allocation amount which is interpreted as a percentage of funds that
 // is to be committed to channels at all times.
-func NewConstrainedPrefAttachment(minChanSize, maxChanSize btcutil.Amount,
+func NewConstrainedPrefAttachment(minChanSize, maxChanSize dcrutil.Amount,
 	chanLimit uint16, allocation float64) *ConstrainedPrefAttachment {
 
 	prand.Seed(time.Now().Unix())
@@ -58,7 +58,7 @@ var _ AttachmentHeuristic = (*ConstrainedPrefAttachment)(nil)
 //
 // NOTE: This is a part of the AttachmentHeuristic interface.
 func (p *ConstrainedPrefAttachment) NeedMoreChans(channels []Channel,
-	funds btcutil.Amount) (btcutil.Amount, bool) {
+	funds dcrutil.Amount) (dcrutil.Amount, bool) {
 
 	// If we're already over our maximum allowed number of channels, then
 	// we'll instruct the controller not to create any more channels.
@@ -68,7 +68,7 @@ func (p *ConstrainedPrefAttachment) NeedMoreChans(channels []Channel,
 
 	// First, we'll tally up the total amount of funds that are currently
 	// present within the set of active channels.
-	var totalChanAllocation btcutil.Amount
+	var totalChanAllocation dcrutil.Amount
 	for _, channel := range channels {
 		totalChanAllocation += channel.Capacity
 	}
@@ -91,7 +91,7 @@ func (p *ConstrainedPrefAttachment) NeedMoreChans(channels []Channel,
 
 	// Now that we know we need more funds, we'll compute the amount of
 	// additional funds we should allocate towards channels.
-	targetAllocation := btcutil.Amount(float64(totalFunds) * p.threshold)
+	targetAllocation := dcrutil.Amount(float64(totalFunds) * p.threshold)
 	fundsAvailable := targetAllocation - totalChanAllocation
 	return fundsAvailable, true
 }
@@ -101,7 +101,7 @@ func (p *ConstrainedPrefAttachment) NeedMoreChans(channels []Channel,
 type NodeID [33]byte
 
 // NewNodeID creates a new nodeID from a passed public key.
-func NewNodeID(pub *btcec.PublicKey) NodeID {
+func NewNodeID(pub *secp256k1.PublicKey) NodeID {
 	var n NodeID
 	copy(n[:], pub.SerializeCompressed())
 	return n
@@ -136,8 +136,8 @@ func shuffleCandidates(candidates []Node) []Node {
 // with k=-3.
 //
 // NOTE: This is a part of the AttachmentHeuristic interface.
-func (p *ConstrainedPrefAttachment) Select(self *btcec.PublicKey, g ChannelGraph,
-	fundsAvailable btcutil.Amount,
+func (p *ConstrainedPrefAttachment) Select(self *secp256k1.PublicKey, g ChannelGraph,
+	fundsAvailable dcrutil.Amount,
 	skipNodes map[NodeID]struct{}) ([]AttachmentDirective, error) {
 
 	// TODO(roasbeef): rename?
@@ -234,7 +234,7 @@ func (p *ConstrainedPrefAttachment) Select(self *btcec.PublicKey, g ChannelGraph
 		pub := selectedNode.PubKey()
 		directives = append(directives, AttachmentDirective{
 			// TODO(roasbeef): need curve?
-			PeerKey: &btcec.PublicKey{
+			PeerKey: &secp256k1.PublicKey{
 				X: pub.X,
 				Y: pub.Y,
 			},

@@ -9,8 +9,8 @@ import (
 	"time"
 
 	"github.com/boltdb/bolt"
-	"github.com/lightningnetwork/lnd/lnwire"
-	"github.com/roasbeef/btcd/wire"
+	"github.com/decred/dcrd/wire"
+	"github.com/decred/dcrlnd/lnwire"
 )
 
 var (

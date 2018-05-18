@@ -3,7 +3,7 @@ package lnwire
 import (
 	"io"
 
-	"github.com/roasbeef/btcd/btcec"
+	"github.com/decred/dcrd/dcrec/secp256k1"
 )
 
 // FundingLocked is the message that both parties to a new channel creation
@@ -18,12 +18,12 @@ type FundingLocked struct {
 
 	// NextPerCommitmentPoint is the secret that can be used to revoke the
 	// next commitment transaction for the channel.
-	NextPerCommitmentPoint *btcec.PublicKey
+	NextPerCommitmentPoint *secp256k1.PublicKey
 }
 
 // NewFundingLocked creates a new FundingLocked message, populating it with the
 // necessary IDs and revocation secret.
-func NewFundingLocked(cid ChannelID, npcp *btcec.PublicKey) *FundingLocked {
+func NewFundingLocked(cid ChannelID, npcp *secp256k1.PublicKey) *FundingLocked {
 	return &FundingLocked{
 		ChanID:                 cid,
 		NextPerCommitmentPoint: npcp,

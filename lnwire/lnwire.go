@@ -10,11 +10,11 @@ import (
 
 	"net"
 
+	"github.com/decred/dcrd/chaincfg/chainhash"
+	"github.com/decred/dcrd/dcrec/secp256k1"
+	"github.com/decred/dcrd/dcrutil"
+	"github.com/decred/dcrd/wire"
 	"github.com/go-errors/errors"
-	"github.com/roasbeef/btcd/btcec"
-	"github.com/roasbeef/btcd/chaincfg/chainhash"
-	"github.com/roasbeef/btcd/wire"
-	"github.com/roasbeef/btcutil"
 )
 
 // MaxSliceLength is the maximum allowed length for any opaque byte slices in
@@ -117,7 +117,7 @@ func writeElement(w io.Writer, element interface{}) error {
 		if _, err := w.Write(b[:]); err != nil {
 			return err
 		}
-	case btcutil.Amount:
+	case dcrutil.Amount:
 		var b [8]byte
 		binary.BigEndian.PutUint64(b[:], uint64(e))
 		if _, err := w.Write(b[:]); err != nil {
@@ -135,7 +135,7 @@ func writeElement(w io.Writer, element interface{}) error {
 		if _, err := w.Write(b[:]); err != nil {
 			return err
 		}
-	case *btcec.PublicKey:
+	case *secp256k1.PublicKey:
 		if e == nil {
 			return fmt.Errorf("cannot write nil pubkey")
 		}
@@ -146,7 +146,7 @@ func writeElement(w io.Writer, element interface{}) error {
 		if _, err := w.Write(b[:]); err != nil {
 			return err
 		}
-	case []*btcec.Signature:
+	case []*secp256k1.Signature:
 		var b [2]byte
 		numSigs := uint16(len(e))
 		binary.BigEndian.PutUint16(b[:], numSigs)
@@ -159,7 +159,7 @@ func writeElement(w io.Writer, element interface{}) error {
 				return err
 			}
 		}
-	case *btcec.Signature:
+	case *secp256k1.Signature:
 		if e == nil {
 			return fmt.Errorf("cannot write nil signature")
 		}
@@ -443,19 +443,19 @@ func readElement(r io.Reader, element interface{}) error {
 			return err
 		}
 		*e = MilliSatoshi(int64(binary.BigEndian.Uint64(b[:])))
-	case *btcutil.Amount:
+	case *dcrutil.Amount:
 		var b [8]byte
 		if _, err := io.ReadFull(r, b[:]); err != nil {
 			return err
 		}
-		*e = btcutil.Amount(int64(binary.BigEndian.Uint64(b[:])))
-	case **btcec.PublicKey:
-		var b [btcec.PubKeyBytesLenCompressed]byte
+		*e = dcrutil.Amount(int64(binary.BigEndian.Uint64(b[:])))
+	case **secp256k1.PublicKey:
+		var b [secp256k1.PubKeyBytesLenCompressed]byte
 		if _, err = io.ReadFull(r, b[:]); err != nil {
 			return err
 		}
 
-		pubKey, err := btcec.ParsePubKey(b[:], btcec.S256())
+		pubKey, err := secp256k1.ParsePubKey(b[:])
 		if err != nil {
 			return err
 		}
@@ -469,16 +469,16 @@ func readElement(r io.Reader, element interface{}) error {
 
 		*e = f
 
-	case *[]*btcec.Signature:
+	case *[]*secp256k1.Signature:
 		var l [2]byte
 		if _, err := io.ReadFull(r, l[:]); err != nil {
 			return err
 		}
 		numSigs := binary.BigEndian.Uint16(l[:])
 
-		var sigs []*btcec.Signature
+		var sigs []*secp256k1.Signature
 		if numSigs > 0 {
-			sigs = make([]*btcec.Signature, numSigs)
+			sigs = make([]*secp256k1.Signature, numSigs)
 			for i := 0; i < int(numSigs); i++ {
 				if err := readElement(r, &sigs[i]); err != nil {
 					return err
@@ -488,7 +488,7 @@ func readElement(r io.Reader, element interface{}) error {
 
 		*e = sigs
 
-	case **btcec.Signature:
+	case **secp256k1.Signature:
 		var b [64]byte
 		if _, err := io.ReadFull(r, b[:]); err != nil {
 			return err

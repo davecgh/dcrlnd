@@ -3,10 +3,10 @@ package autopilot
 import (
 	"net"
 
-	"github.com/lightningnetwork/lnd/lnwire"
-	"github.com/roasbeef/btcd/btcec"
-	"github.com/roasbeef/btcd/wire"
-	"github.com/roasbeef/btcutil"
+	"github.com/decred/dcrd/dcrec/secp256k1"
+	"github.com/decred/dcrd/dcrutil"
+	"github.com/decred/dcrd/wire"
+	"github.com/decred/dcrlnd/lnwire"
 )
 
 // Node node is an interface which represents n abstract vertex within the
@@ -18,7 +18,7 @@ type Node interface {
 	// PubKey is the identity public key of the node. This will be used to
 	// attempt to target a node for channel opening by the main autopilot
 	// agent.
-	PubKey() *btcec.PublicKey
+	PubKey() *secp256k1.PublicKey
 
 	// Addrs returns a slice of publicly reachable public TCP addresses
 	// that the peer is known to be listening on.
@@ -39,14 +39,14 @@ type Channel struct {
 	// BOLT-0007.
 	ChanID lnwire.ShortChannelID
 
-	// Capacity is the capacity of the channel expressed in satoshis.
-	Capacity btcutil.Amount
+	// Capacity is the capacity of the channel expressed in base units.
+	Capacity dcrutil.Amount
 
 	// FundedAmt is the amount the local node funded into the target
 	// channel.
 	//
 	// TODO(roasbeef): need this?
-	FundedAmt btcutil.Amount
+	FundedAmt dcrutil.Amount
 
 	// Node is the peer that this channel has been established with.
 	Node NodeID
@@ -88,11 +88,11 @@ type AttachmentDirective struct {
 	// PeerKey is the target node for this attachment directive. It can be
 	// identified by it's public key, and therefore can be used along with
 	// a ChannelOpener implementation to execute the directive.
-	PeerKey *btcec.PublicKey
+	PeerKey *secp256k1.PublicKey
 
 	// ChanAmt is the size of the channel that should be opened, expressed
-	// in satoshis.
-	ChanAmt btcutil.Amount
+	// in base units.
+	ChanAmt dcrutil.Amount
 
 	// Addrs is a list of addresses that the target peer may be reachable
 	// at.
@@ -114,14 +114,15 @@ type AttachmentHeuristic interface {
 	// channels.
 	//
 	// TODO(roasbeef): return number of chans? ensure doesn't go over
-	NeedMoreChans(chans []Channel, balance btcutil.Amount) (btcutil.Amount, bool)
+	NeedMoreChans(chans []Channel, balance dcrutil.Amount) (dcrutil.Amount, bool)
 
 	// Select is a method that given the current state of the channel
 	// graph, a set of nodes to ignore, and an amount of available funds,
 	// should return a set of attachment directives which describe which
 	// additional channels should be opened within the graph to push the
 	// heuristic back towards its equilibrium state.
-	Select(self *btcec.PublicKey, graph ChannelGraph, amtToUse btcutil.Amount,
+	Select(self *secp256k1.PublicKey, graph ChannelGraph,
+		amtToUse dcrutil.Amount,
 		skipNodes map[NodeID]struct{}) ([]AttachmentDirective, error)
 }
 
@@ -133,7 +134,7 @@ type ChannelController interface {
 	// specified amount. This function should un-block immediately after
 	// the funding transaction that marks the channel open has been
 	// broadcast.
-	OpenChannel(target *btcec.PublicKey, amt btcutil.Amount,
+	OpenChannel(target *secp256k1.PublicKey, amt dcrutil.Amount,
 		addrs []net.Addr) error
 
 	// CloseChannel attempts to close out the target channel.
@@ -144,10 +145,10 @@ type ChannelController interface {
 	// SpliceIn attempts to add additional funds to the target channel via
 	// a splice in mechanism. The new channel with an updated capacity
 	// should be returned.
-	SpliceIn(chanPoint *wire.OutPoint, amt btcutil.Amount) (*Channel, error)
+	SpliceIn(chanPoint *wire.OutPoint, amt dcrutil.Amount) (*Channel, error)
 
 	// SpliceOut attempts to remove funds from an existing channels using a
 	// splice out mechanism. The removed funds from the channel should be
 	// returned to an output under the control of the backing wallet.
-	SpliceOut(chanPoint *wire.OutPoint, amt btcutil.Amount) (*Channel, error)
+	SpliceOut(chanPoint *wire.OutPoint, amt dcrutil.Amount) (*Channel, error)
 }

@@ -5,7 +5,7 @@ import (
 	"net"
 	"testing"
 
-	"github.com/roasbeef/btcd/btcec"
+	"github.com/decred/dcrd/dcrec/secp256k1"
 )
 
 func TestNetAddressDisplay(t *testing.T) {
@@ -17,7 +17,7 @@ func TestNetAddressDisplay(t *testing.T) {
 		t.Fatalf("unable to decode str: %v", err)
 	}
 
-	pubKey, err := btcec.ParsePubKey(pubHex, btcec.S256())
+	pubKey, err := secp256k1.ParsePubKey(pubHex)
 	if err != nil {
 		t.Fatalf("unable to parse pubkey: %v", err)
 	}

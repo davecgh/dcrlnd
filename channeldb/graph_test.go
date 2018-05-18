@@ -16,10 +16,10 @@ import (
 
 	"github.com/boltdb/bolt"
 	"github.com/davecgh/go-spew/spew"
-	"github.com/lightningnetwork/lnd/lnwire"
-	"github.com/roasbeef/btcd/btcec"
-	"github.com/roasbeef/btcd/chaincfg/chainhash"
-	"github.com/roasbeef/btcd/wire"
+	"github.com/decred/dcrd/chaincfg/chainhash"
+	"github.com/decred/dcrd/dcrec/secp256k1"
+	"github.com/decred/dcrd/wire"
+	"github.com/decred/dcrlnd/lnwire"
 )
 
 var (
@@ -31,7 +31,7 @@ var (
 
 	randSource = prand.NewSource(time.Now().Unix())
 	randInts   = prand.New(randSource)
-	testSig    = &btcec.Signature{
+	testSig    = &secp256k1.Signature{
 		R: new(big.Int),
 		S: new(big.Int),
 	}
@@ -44,17 +44,17 @@ var (
 func createTestVertex(db *DB) (*LightningNode, error) {
 	updateTime := prand.Int63()
 
-	priv, err := btcec.NewPrivateKey(btcec.S256())
+	priv, err := secp256k1.GeneratePrivateKey()
 	if err != nil {
 		return nil, err
 	}
 
-	pub := priv.PubKey().SerializeCompressed()
+	pub := (*secp256k1.PublicKey)(&priv.PublicKey).SerializeCompressed()
 	return &LightningNode{
 		HaveNodeAnnouncement: true,
 		AuthSig:              testSig,
 		LastUpdate:           time.Unix(updateTime, 0),
-		PubKey:               priv.PubKey(),
+		PubKey:               (*secp256k1.PublicKey)(&priv.PublicKey),
 		Color:                color.RGBA{1, 2, 3, 0},
 		Alias:                "kek" + string(pub[:]),
 		Features:             testFeatures,
@@ -76,7 +76,7 @@ func TestNodeInsertionAndDeletion(t *testing.T) {
 
 	// We'd like to test basic insertion/deletion for vertexes from the
 	// graph, so we'll create a test vertex to start with.
-	_, testPub := btcec.PrivKeyFromBytes(btcec.S256(), key[:])
+	_, testPub := secp256k1.PrivKeyFromBytes(key[:])
 	node := &LightningNode{
 		HaveNodeAnnouncement: true,
 		AuthSig:              testSig,
@@ -142,7 +142,7 @@ func TestPartialNode(t *testing.T) {
 
 	// We want to be able to insert nodes into the graph that only has the
 	// PubKey set.
-	_, testPub := btcec.PrivKeyFromBytes(btcec.S256(), key[:])
+	_, testPub := secp256k1.PrivKeyFromBytes(key[:])
 	node := &LightningNode{
 		PubKey:               testPub,
 		HaveNodeAnnouncement: false,

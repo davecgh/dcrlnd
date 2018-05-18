@@ -8,12 +8,12 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/lightningnetwork/lnd/lnwallet"
-	"github.com/roasbeef/btcd/btcec"
-	"github.com/roasbeef/btcd/chaincfg/chainhash"
-	"github.com/roasbeef/btcd/txscript"
-	"github.com/roasbeef/btcd/wire"
-	"github.com/roasbeef/btcutil"
+	"github.com/decred/dcrd/chaincfg/chainhash"
+	"github.com/decred/dcrd/dcrec/secp256k1"
+	"github.com/decred/dcrd/dcrutil"
+	"github.com/decred/dcrd/txscript"
+	"github.com/decred/dcrd/wire"
+	"github.com/decred/dcrlnd/lnwallet"
 )
 
 var (
@@ -196,7 +196,7 @@ var (
 	kidOutputs = []kidOutput{
 		{
 			breachedOutput: breachedOutput{
-				amt:         btcutil.Amount(13e7),
+				amt:         dcrutil.Amount(13e7),
 				outpoint:    outPoints[1],
 				witnessType: lnwallet.CommitmentTimeLock,
 			},
@@ -207,7 +207,7 @@ var (
 
 		{
 			breachedOutput: breachedOutput{
-				amt:         btcutil.Amount(24e7),
+				amt:         dcrutil.Amount(24e7),
 				outpoint:    outPoints[2],
 				witnessType: lnwallet.CommitmentTimeLock,
 			},
@@ -218,7 +218,7 @@ var (
 
 		{
 			breachedOutput: breachedOutput{
-				amt:         btcutil.Amount(2e5),
+				amt:         dcrutil.Amount(2e5),
 				outpoint:    outPoints[3],
 				witnessType: lnwallet.CommitmentTimeLock,
 			},
@@ -315,7 +315,7 @@ func init() {
 	// Finish initializing our test vectors by parsing the desired public keys and
 	// properly populating the sign descriptors of all baby and kid outputs.
 	for i := range signDescriptors {
-		pk, err := btcec.ParsePubKey(keys[i], btcec.S256())
+		pk, err := secp256k1.ParsePubKey(keys[i])
 		if err != nil {
 			panic(fmt.Sprintf("unable to parse pub key during init: %v", err))
 		}

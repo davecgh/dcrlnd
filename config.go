@@ -18,10 +18,11 @@ import (
 	"time"
 
 	flags "github.com/jessevdk/go-flags"
-	"github.com/lightningnetwork/lnd/brontide"
-	"github.com/lightningnetwork/lnd/lnwire"
-	"github.com/roasbeef/btcd/btcec"
-	"github.com/roasbeef/btcutil"
+
+	"github.com/decred/dcrd/dcrec/secp256k1"
+	"github.com/decred/dcrd/dcrutil"
+	"github.com/decred/dcrlnd/brontide"
+	"github.com/decred/dcrlnd/lnwire"
 )
 
 const (
@@ -59,7 +60,7 @@ const (
 
 var (
 	// TODO(roasbeef): base off of datadir instead?
-	lndHomeDir          = btcutil.AppDataDir("lnd", false)
+	lndHomeDir          = dcrutil.AppDataDir("dcrlnd", false)
 	defaultConfigFile   = filepath.Join(lndHomeDir, defaultConfigFilename)
 	defaultDataDir      = filepath.Join(lndHomeDir, defaultDataDirname)
 	defaultTLSCertPath  = filepath.Join(lndHomeDir, defaultTLSCertFilename)
@@ -68,10 +69,10 @@ var (
 	defaultReadMacPath  = filepath.Join(lndHomeDir, defaultReadMacFilename)
 	defaultLogDir       = filepath.Join(lndHomeDir, defaultLogDirname)
 
-	btcdHomeDir            = btcutil.AppDataDir("btcd", false)
-	defaultBtcdRPCCertFile = filepath.Join(btcdHomeDir, "rpc.cert")
+	dcrdHomeDir            = dcrutil.AppDataDir("dcrd", false)
+	defaultDcrdRPCCertFile = filepath.Join(dcrdHomeDir, "rpc.cert")
 
-	ltcdHomeDir            = btcutil.AppDataDir("ltcd", false)
+	ltcdHomeDir            = dcrutil.AppDataDir("ltcd", false)
 	defaultLtcdRPCCertFile = filepath.Join(ltcdHomeDir, "rpc.cert")
 
 	bitcoindHomeDir = btcutil.AppDataDir("bitcoin", false)
@@ -562,7 +563,7 @@ func supportedSubsystems() []string {
 
 // noiseDial is a factory function which creates a connmgr compliant dialing
 // function by returning a closure which includes the server's identity key.
-func noiseDial(idPriv *btcec.PrivateKey) func(net.Addr) (net.Conn, error) {
+func noiseDial(idPriv *secp256k1.PrivateKey) func(net.Addr) (net.Conn, error) {
 	return func(a net.Addr) (net.Conn, error) {
 		lnAddr := a.(*lnwire.NetAddress)
 		return brontide.Dial(idPriv, lnAddr)
@@ -622,24 +623,15 @@ func parseRPCParams(cConfig *chainConfig, nodeConfig interface{}, net chainCode,
 
 	confFile = filepath.Join(homeDir, fmt.Sprintf("%v.conf", confFile))
 	switch cConfig.Node {
-	case "btcd":
-		nConf := nodeConfig.(*btcdConfig)
-		rpcUser, rpcPass, err := extractBtcdRPCParams(confFile)
+	case "dcrd":
+		nConf := nodeConfig.(*dcrdConfig)
+		rpcUser, rpcPass, err := extractDcrdRPCParams(confFile)
 		if err != nil {
 			return fmt.Errorf("unable to extract RPC credentials:"+
 				" %v, cannot start w/o RPC connection",
 				err)
 		}
 		nConf.RPCUser, nConf.RPCPass = rpcUser, rpcPass
-	case "bitcoind":
-		nConf := nodeConfig.(*bitcoindConfig)
-		rpcUser, rpcPass, zmqPath, err := extractBitcoindRPCParams(confFile)
-		if err != nil {
-			return fmt.Errorf("unable to extract RPC credentials:"+
-				" %v, cannot start w/o RPC connection",
-				err)
-		}
-		nConf.RPCUser, nConf.RPCPass, nConf.ZMQPath = rpcUser, rpcPass, zmqPath
 	}
 
 	fmt.Printf("Automatically obtained %v's RPC credentials\n", daemonName)

@@ -3,8 +3,8 @@ package lnwire
 import (
 	"io"
 
-	"github.com/roasbeef/btcd/btcec"
-	"github.com/roasbeef/btcd/wire"
+	"github.com/decred/dcrd/dcrec/secp256k1"
+	"github.com/decred/dcrd/wire"
 )
 
 // FundingCreated is sent from Alice (the initiator) to Bob (the responder),
@@ -24,7 +24,7 @@ type FundingCreated struct {
 
 	// CommitSig is Alice's signature from Bob's version of the commitment
 	// transaction.
-	CommitSig *btcec.Signature
+	CommitSig *secp256k1.Signature
 }
 
 // A compile time check to ensure FundingCreated implements the lnwire.Message

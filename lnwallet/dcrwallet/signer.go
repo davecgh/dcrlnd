@@ -1,15 +1,15 @@
-package btcwallet
+package dcrwallet
 
 import (
+	"github.com/decred/dcrd/chaincfg/chainhash"
+	"github.com/decred/dcrd/dcrec/secp256k1"
+	"github.com/decred/dcrd/dcrutil"
+	"github.com/decred/dcrd/txscript"
+	"github.com/decred/dcrd/wire"
+	"github.com/decred/dcrlnd/lnwallet"
+	base "github.com/decred/dcrwallet/wallet"
+	"github.com/decred/dcrwallet/wallet/udb"
 	"github.com/go-errors/errors"
-	"github.com/lightningnetwork/lnd/lnwallet"
-	"github.com/roasbeef/btcd/btcec"
-	"github.com/roasbeef/btcd/chaincfg/chainhash"
-	"github.com/roasbeef/btcd/txscript"
-	"github.com/roasbeef/btcd/wire"
-	"github.com/roasbeef/btcutil"
-	"github.com/roasbeef/btcwallet/waddrmgr"
-	base "github.com/roasbeef/btcwallet/wallet"
 )
 
 // FetchInputInfo queries for the WalletController's knowledge of the passed
@@ -18,7 +18,7 @@ import (
 // of ErrNotMine should be returned instead.
 //
 // This is a part of the WalletController interface.
-func (b *BtcWallet) FetchInputInfo(prevOut *wire.OutPoint) (*wire.TxOut, error) {
+func (b *DcrWallet) FetchInputInfo(prevOut *wire.OutPoint) (*wire.TxOut, error) {
 	var (
 		err    error
 		output *wire.TxOut
@@ -54,7 +54,7 @@ func (b *BtcWallet) FetchInputInfo(prevOut *wire.OutPoint) (*wire.TxOut, error) 
 // fetchOutputKey attempts to fetch the managed address corresponding to the
 // passed output script. This function is used to look up the proper key which
 // should be used to sign a specified input.
-func (b *BtcWallet) fetchOutputAddr(script []byte) (waddrmgr.ManagedAddress, error) {
+func (b *DcrWallet) fetchOutputAddr(script []byte) (udb.ManagedAddress, error) {
 	_, addrs, _, err := txscript.ExtractPkScriptAddrs(script, b.netParams)
 	if err != nil {
 		return nil, err
@@ -77,9 +77,9 @@ func (b *BtcWallet) fetchOutputAddr(script []byte) (waddrmgr.ManagedAddress, err
 // passed public key.
 // TODO(roasbeef): alternatively can extract all the data pushes within the
 // script, then attempt to match keys one by one
-func (b *BtcWallet) fetchPrivKey(pub *btcec.PublicKey) (*btcec.PrivateKey, error) {
-	hash160 := btcutil.Hash160(pub.SerializeCompressed())
-	addr, err := btcutil.NewAddressWitnessPubKeyHash(hash160, b.netParams)
+func (b *DcrWallet) fetchPrivKey(pub *secp256k1.PublicKey) (*secp256k1.PrivateKey, error) {
+	hash160 := dcrutil.Hash160(pub.SerializeCompressed())
+	addr, err := dcrutil.NewAddressWitnessPubKeyHash(hash160, b.netParams)
 	if err != nil {
 		return nil, err
 	}
@@ -91,9 +91,9 @@ func (b *BtcWallet) fetchPrivKey(pub *btcec.PublicKey) (*btcec.PrivateKey, error
 // passed sign descriptor and may perform a mapping on the passed private key
 // in order to utilize the tweaks, if populated.
 func maybeTweakPrivKey(signDesc *lnwallet.SignDescriptor,
-	privKey *btcec.PrivateKey) (*btcec.PrivateKey, error) {
+	privKey *secp256k1.PrivateKey) (*secp256k1.PrivateKey, error) {
 
-	var retPriv *btcec.PrivateKey
+	var retPriv *secp256k1.PrivateKey
 	switch {
 
 	case signDesc.SingleTweak != nil:
@@ -115,7 +115,7 @@ func maybeTweakPrivKey(signDesc *lnwallet.SignDescriptor,
 // the data within the passed SignDescriptor.
 //
 // This is a part of the WalletController interface.
-func (b *BtcWallet) SignOutputRaw(tx *wire.MsgTx,
+func (b *DcrWallet) SignOutputRaw(tx *wire.MsgTx,
 	signDesc *lnwallet.SignDescriptor) ([]byte, error) {
 	witnessScript := signDesc.WitnessScript
 
@@ -154,7 +154,7 @@ func (b *BtcWallet) SignOutputRaw(tx *wire.MsgTx,
 // regular p2wkh output and p2wkh outputs nested within a regular p2sh output.
 //
 // This is a part of the WalletController interface.
-func (b *BtcWallet) ComputeInputScript(tx *wire.MsgTx,
+func (b *DcrWallet) ComputeInputScript(tx *wire.MsgTx,
 	signDesc *lnwallet.SignDescriptor) (*lnwallet.InputScript, error) {
 
 	outputScript := signDesc.Output.PkScript
@@ -163,7 +163,7 @@ func (b *BtcWallet) ComputeInputScript(tx *wire.MsgTx,
 		return nil, nil
 	}
 
-	pka := walletAddr.(waddrmgr.ManagedPubKeyAddress)
+	pka := walletAddr.(udb.ManagedPubKeyAddress)
 	privKey, err := pka.PrivKey()
 	if err != nil {
 		return nil, err
@@ -178,13 +178,13 @@ func (b *BtcWallet) ComputeInputScript(tx *wire.MsgTx,
 	// we'll need to attach a sigScript in addition to witness data.
 	case pka.IsNestedWitness():
 		pubKey := privKey.PubKey()
-		pubKeyHash := btcutil.Hash160(pubKey.SerializeCompressed())
+		pubKeyHash := dcrutil.Hash160(pubKey.SerializeCompressed())
 
 		// Next, we'll generate a valid sigScript that'll allow us to
 		// spend the p2sh output. The sigScript will contain only a
 		// single push of the p2wkh witness program corresponding to
 		// the matching public key of this address.
-		p2wkhAddr, err := btcutil.NewAddressWitnessPubKeyHash(pubKeyHash,
+		p2wkhAddr, err := dcrutil.NewAddressWitnessPubKeyHash(pubKeyHash,
 			b.netParams)
 		if err != nil {
 			return nil, err
@@ -234,9 +234,9 @@ func (b *BtcWallet) ComputeInputScript(tx *wire.MsgTx,
 	return inputScript, nil
 }
 
-// A compile time check to ensure that BtcWallet implements the Signer
+// A compile time check to ensure that DcrWallet implements the Signer
 // interface.
-var _ lnwallet.Signer = (*BtcWallet)(nil)
+var _ lnwallet.Signer = (*DcrWallet)(nil)
 
 // SignMessage attempts to sign a target message with the private key that
 // corresponds to the passed public key. If the target private key is unable to
@@ -244,8 +244,8 @@ var _ lnwallet.Signer = (*BtcWallet)(nil)
 // double SHA-256 of the passed message.
 //
 // NOTE: This is a part of the MessageSigner interface.
-func (b *BtcWallet) SignMessage(pubKey *btcec.PublicKey,
-	msg []byte) (*btcec.Signature, error) {
+func (b *DcrWallet) SignMessage(pubKey *secp256k1.PublicKey,
+	msg []byte) (*secp256k1.Signature, error) {
 
 	// First attempt to fetch the private key which corresponds to the
 	// specified public key.
@@ -264,6 +264,6 @@ func (b *BtcWallet) SignMessage(pubKey *btcec.PublicKey,
 	return sign, nil
 }
 
-// A compile time check to ensure that BtcWallet implements the MessageSigner
+// A compile time check to ensure that DcrWallet implements the MessageSigner
 // interface.
-var _ lnwallet.MessageSigner = (*BtcWallet)(nil)
+var _ lnwallet.MessageSigner = (*DcrWallet)(nil)

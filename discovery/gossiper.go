@@ -11,15 +11,15 @@ import (
 
 	"github.com/boltdb/bolt"
 	"github.com/davecgh/go-spew/spew"
+	"github.com/decred/dcrd/chaincfg/chainhash"
+	"github.com/decred/dcrd/dcrec/secp256k1"
+	"github.com/decred/dcrd/wire"
+	"github.com/decred/dcrlnd/chainntnfs"
+	"github.com/decred/dcrlnd/channeldb"
+	//"github.com/decred/dcrlnd/lnwallet"
+	"github.com/decred/dcrlnd/lnwire"
+	"github.com/decred/dcrlnd/routing"
 	"github.com/go-errors/errors"
-	"github.com/lightningnetwork/lnd/chainntnfs"
-	"github.com/lightningnetwork/lnd/channeldb"
-	"github.com/lightningnetwork/lnd/lnwallet"
-	"github.com/lightningnetwork/lnd/lnwire"
-	"github.com/lightningnetwork/lnd/routing"
-	"github.com/roasbeef/btcd/btcec"
-	"github.com/roasbeef/btcd/chaincfg/chainhash"
-	"github.com/roasbeef/btcd/wire"
 )
 
 var (
@@ -34,7 +34,7 @@ var (
 // networkMsg couples a routing related wire message with the peer that
 // originally sent it.
 type networkMsg struct {
-	peer *btcec.PublicKey
+	peer *secp256k1.PublicKey
 	msg  lnwire.Message
 
 	isRemote bool
@@ -83,12 +83,11 @@ type Config struct {
 	// that the daemon is connected to. If supplied, the exclude parameter
 	// indicates that the target peer should be excluded from the
 	// broadcast.
-	Broadcast func(skips map[routing.Vertex]struct{},
-		msg ...lnwire.Message) error
+	Broadcast func(skips map[routing.Vertex]struct{}, msg ...lnwire.Message) error
 
 	// SendToPeer is a function which allows the service to send a set of
 	// messages to a particular peer identified by the target public key.
-	SendToPeer func(target *btcec.PublicKey, msg ...lnwire.Message) error
+	SendToPeer func(target *secp256k1.PublicKey, msg ...lnwire.Message) error
 
 	// NotifyWhenOnline is a function that allows the gossiper to be
 	// notified when a certain peer comes online, allowing it to
@@ -184,14 +183,14 @@ type AuthenticatedGossiper struct {
 	bestHeight uint32
 
 	// selfKey is the identity public key of the backing Lighting node.
-	selfKey *btcec.PublicKey
+	selfKey *secp256k1.PublicKey
 
 	sync.Mutex
 }
 
 // New creates a new AuthenticatedGossiper instance, initialized with the
 // passed configuration parameters.
-func New(cfg Config, selfKey *btcec.PublicKey) (*AuthenticatedGossiper, error) {
+func New(cfg Config, selfKey *secp256k1.PublicKey) (*AuthenticatedGossiper, error) {
 	storage, err := channeldb.NewWaitingProofStore(cfg.DB)
 	if err != nil {
 		return nil, err
@@ -216,7 +215,7 @@ func New(cfg Config, selfKey *btcec.PublicKey) (*AuthenticatedGossiper, error) {
 // the entire network graph is read from disk, then serialized to the format
 // defined within the current wire protocol. This cache of graph data is then
 // sent directly to the target node.
-func (d *AuthenticatedGossiper) SynchronizeNode(pub *btcec.PublicKey) error {
+func (d *AuthenticatedGossiper) SynchronizeNode(pub *secp256k1.PublicKey) error {
 	// TODO(roasbeef): need to also store sig data in db
 	//  * will be nice when we switch to pairing sigs would only need one ^_^
 
@@ -383,7 +382,7 @@ func (d *AuthenticatedGossiper) Stop() {
 // peers.  Remote channel announcements should contain the announcement proof
 // and be fully validated.
 func (d *AuthenticatedGossiper) ProcessRemoteAnnouncement(msg lnwire.Message,
-	src *btcec.PublicKey) chan error {
+	src *secp256k1.PublicKey) chan error {
 
 	nMsg := &networkMsg{
 		msg:      msg,
@@ -409,7 +408,7 @@ func (d *AuthenticatedGossiper) ProcessRemoteAnnouncement(msg lnwire.Message,
 // entire channel announcement and update messages will be re-constructed and
 // broadcast to the rest of the network.
 func (d *AuthenticatedGossiper) ProcessLocalAnnouncement(msg lnwire.Message,
-	src *btcec.PublicKey) chan error {
+	src *secp256k1.PublicKey) chan error {
 
 	nMsg := &networkMsg{
 		msg:      msg,
@@ -1561,7 +1560,7 @@ func (d *AuthenticatedGossiper) processNetworkAnnouncement(nMsg *networkMsg) []n
 		// The least-significant bit in the flag on the channel update
 		// announcement tells us "which" side of the channels directed
 		// edge is being updated.
-		var pubKey *btcec.PublicKey
+		var pubKey *secp256k1.PublicKey
 		switch {
 		case msg.Flags&lnwire.ChanUpdateDirection == 0:
 			pubKey = chanInfo.NodeKey1

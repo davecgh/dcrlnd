@@ -10,13 +10,13 @@ import (
 
 	"crypto/sha256"
 
+	"github.com/decred/dcrd/chaincfg/chainhash"
+	"github.com/decred/dcrd/dcrutil"
+	"github.com/decred/dcrd/wire"
+	"github.com/decred/dcrlnd/chainntnfs"
+	"github.com/decred/dcrlnd/lnwallet"
+	"github.com/decred/dcrlnd/lnwire"
 	"github.com/go-errors/errors"
-	"github.com/lightningnetwork/lnd/chainntnfs"
-	"github.com/lightningnetwork/lnd/lnwallet"
-	"github.com/lightningnetwork/lnd/lnwire"
-	"github.com/roasbeef/btcd/chaincfg/chainhash"
-	"github.com/roasbeef/btcd/wire"
-	"github.com/roasbeef/btcutil"
 )
 
 const (
@@ -305,7 +305,7 @@ func (l *channelLink) EligibleToForward() bool {
 // chain in a timely manner. The returned value is expressed in fee-per-kw, as
 // this is the native rate used when computing the fee for commitment
 // transactions, and the second-level HTLC transactions.
-func (l *channelLink) sampleNetworkFee() (btcutil.Amount, error) {
+func (l *channelLink) sampleNetworkFee() (dcrutil.Amount, error) {
 	// We'll first query for the sat/weight recommended to be confirmed
 	// within 3blocks.
 	feePerWeight, err := l.cfg.FeeEstimator.EstimateFeePerWeight(3)
@@ -325,7 +325,7 @@ func (l *channelLink) sampleNetworkFee() (btcutil.Amount, error) {
 // shouldAdjustCommitFee returns true if we should update our commitment fee to
 // match that of the network fee. We'll only update our commitment fee if the
 // network fee is +/- 10% to our network fee.
-func shouldAdjustCommitFee(netFee, chanFee btcutil.Amount) bool {
+func shouldAdjustCommitFee(netFee, chanFee dcrutil.Amount) bool {
 	switch {
 	// If the network fee is greater than the commitment fee, then we'll
 	// switch to it if it's at least 10% greater than the commit fee.
@@ -986,7 +986,7 @@ func (l *channelLink) handleUpstreamMsg(msg lnwire.Message) {
 	case *lnwire.UpdateFee:
 		// We received fee update from peer. If we are the initiator we
 		// will fail the channel, if not we will apply the update.
-		fee := btcutil.Amount(msg.FeePerKw)
+		fee := dcrutil.Amount(msg.FeePerKw)
 		if err := l.channel.ReceiveUpdateFee(fee); err != nil {
 			l.fail("error receiving fee update: %v", err)
 			return
@@ -1146,7 +1146,7 @@ func (l *channelLink) HandleChannelUpdate(message lnwire.Message) {
 
 // updateChannelFee updates the commitment fee-per-kw on this channel by
 // committing to an update_fee message.
-func (l *channelLink) updateChannelFee(feePerKw btcutil.Amount) error {
+func (l *channelLink) updateChannelFee(feePerKw dcrutil.Amount) error {
 
 	log.Infof("ChannelPoint(%v): updating commit fee to %v sat/kw", l,
 		feePerKw)

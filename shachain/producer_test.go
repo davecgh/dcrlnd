@@ -2,9 +2,8 @@ package shachain
 
 import (
 	"bytes"
+	"crypto/sha256"
 	"testing"
-
-	"github.com/roasbeef/btcd/chaincfg/chainhash"
 )
 
 // TestShaChainProducerRestore checks the ability of shachain producer to be
@@ -14,7 +13,7 @@ func TestShaChainProducerRestore(t *testing.T) {
 
 	var err error
 
-	seed := chainhash.DoubleHashH([]byte("shachaintest"))
+	seed := sha256.Sum256([]byte("shachaintest"))
 	sender := NewRevocationProducer(seed)
 
 	s1, err := sender.AtIndex(0)
@@ -37,7 +36,7 @@ func TestShaChainProducerRestore(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if !s1.IsEqual(s3) {
-		t.Fatalf("secrets should match: %v:%v", s1.String(), s3.String())
+	if *s1 != *s3 {
+		t.Fatalf("secrets should match: %v:%v", s1, s3)
 	}
 }

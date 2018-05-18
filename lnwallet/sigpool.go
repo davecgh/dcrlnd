@@ -5,8 +5,8 @@ import (
 	"sync"
 	"sync/atomic"
 
-	"github.com/roasbeef/btcd/btcec"
-	"github.com/roasbeef/btcd/wire"
+	"github.com/decred/dcrd/dcrec/secp256k1"
+	"github.com/decred/dcrd/wire"
 )
 
 const (
@@ -30,11 +30,11 @@ type verifyJob struct {
 	// valid signature. Note that with the current channel construction,
 	// this public key will likely have been tweaked using the current per
 	// commitment point for a particular commitment transactions.
-	pubKey *btcec.PublicKey
+	pubKey *secp256k1.PublicKey
 
 	// sig is the raw signature generated using the above public key.  This
 	// is the signature to be verified.
-	sig *btcec.Signature
+	sig *secp256k1.Signature
 
 	// sigHash is a function closure generates the sighashes that the
 	// passed signature is known to have signed.
@@ -90,7 +90,7 @@ type signJobResp struct {
 	// sig is the generated signature for a particular signJob In the case
 	// of an error during signature generation, then this value sent will
 	// be nil.
-	sig *btcec.Signature
+	sig *secp256k1.Signature
 
 	// err is the error that occurred when executing the specified
 	// signature job. In the case that no error occurred, this value will
@@ -196,7 +196,7 @@ func (s *sigPool) poolWorker() {
 				}
 			}
 
-			sig, err := btcec.ParseSignature(rawSig, btcec.S256())
+			sig, err := secp256k1.ParseSignature(rawSig, secp256k1.S256())
 			select {
 			case sigMsg.resp <- signJobResp{
 				sig: sig,

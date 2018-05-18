@@ -3,8 +3,7 @@ package lnwallet
 import (
 	"fmt"
 
-	"github.com/roasbeef/btcd/txscript"
-	"github.com/roasbeef/btcd/wire"
+	"github.com/decred/dcrd/wire"
 )
 
 // WitnessType determines how an output's witness will be generated. The
@@ -48,19 +47,15 @@ const (
 // WitnessGenerator represents a function which is able to generate the final
 // witness for a particular public key script. This function acts as an
 // abstraction layer, hiding the details of the underlying script.
-type WitnessGenerator func(tx *wire.MsgTx, hc *txscript.TxSigHashes,
-	inputIndex int) ([][]byte, error)
+type WitnessGenerator func(tx *wire.MsgTx, inputIndex int) ([][]byte, error)
 
 // GenWitnessFunc will return a WitnessGenerator function that an output
 // uses to generate the witness for a sweep transaction.
 func (wt WitnessType) GenWitnessFunc(signer Signer,
 	descriptor *SignDescriptor) WitnessGenerator {
 
-	return func(tx *wire.MsgTx, hc *txscript.TxSigHashes,
-		inputIndex int) ([][]byte, error) {
-
+	return func(tx *wire.MsgTx, inputIndex int) ([][]byte, error) {
 		desc := descriptor
-		desc.SigHashes = hc
 		desc.InputIndex = inputIndex
 
 		switch wt {

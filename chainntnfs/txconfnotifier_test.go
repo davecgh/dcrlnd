@@ -3,10 +3,10 @@ package chainntnfs_test
 import (
 	"testing"
 
-	"github.com/lightningnetwork/lnd/chainntnfs"
-	"github.com/roasbeef/btcd/chaincfg/chainhash"
-	"github.com/roasbeef/btcd/wire"
-	"github.com/roasbeef/btcutil"
+	"github.com/decred/dcrd/chaincfg/chainhash"
+	"github.com/decred/dcrd/dcrutil"
+	"github.com/decred/dcrd/wire"
+	"github.com/decred/dcrlnd/chainntnfs"
 )
 
 var zeroHash chainhash.Hash

@@ -19,14 +19,14 @@ import (
 	"os"
 
 	"github.com/davecgh/go-spew/spew"
+	"github.com/decred/dcrd/chaincfg/chainhash"
+	"github.com/decred/dcrd/dcrec/secp256k1"
+	"github.com/decred/dcrd/wire"
+	"github.com/decred/dcrlnd/chainntnfs"
+	"github.com/decred/dcrlnd/channeldb"
+	"github.com/decred/dcrlnd/lnwire"
+	"github.com/decred/dcrlnd/routing"
 	"github.com/go-errors/errors"
-	"github.com/lightningnetwork/lnd/chainntnfs"
-	"github.com/lightningnetwork/lnd/channeldb"
-	"github.com/lightningnetwork/lnd/lnwire"
-	"github.com/lightningnetwork/lnd/routing"
-	"github.com/roasbeef/btcd/btcec"
-	"github.com/roasbeef/btcd/chaincfg/chainhash"
-	"github.com/roasbeef/btcd/wire"
 )
 
 var (
@@ -34,7 +34,7 @@ var (
 		Port: 9000}
 	testAddrs    = []net.Addr{testAddr}
 	testFeatures = lnwire.NewRawFeatureVector()
-	testSig      = &btcec.Signature{
+	testSig      = &secp256k1.Signature{
 		R: new(big.Int),
 		S: new(big.Int),
 	}
@@ -45,16 +45,16 @@ var (
 	sha, _   = chainhash.NewHashFromStr(inputStr)
 	outpoint = wire.NewOutPoint(sha, 0)
 
-	bitcoinKeyPriv1, _ = btcec.NewPrivateKey(btcec.S256())
+	bitcoinKeyPriv1, _ = secp256k1.GeneratePrivateKey()
 	bitcoinKeyPub1     = bitcoinKeyPriv1.PubKey()
 
-	nodeKeyPriv1, _ = btcec.NewPrivateKey(btcec.S256())
+	nodeKeyPriv1, _ = secp256k1.GeneratePrivateKey()
 	nodeKeyPub1     = nodeKeyPriv1.PubKey()
 
-	bitcoinKeyPriv2, _ = btcec.NewPrivateKey(btcec.S256())
+	bitcoinKeyPriv2, _ = secp256k1.GeneratePrivateKey()
 	bitcoinKeyPub2     = bitcoinKeyPriv2.PubKey()
 
-	nodeKeyPriv2, _ = btcec.NewPrivateKey(btcec.S256())
+	nodeKeyPriv2, _ = secp256k1.GeneratPrivateKey()
 	nodeKeyPub2     = nodeKeyPriv2.PubKey()
 
 	trickleDelay     = time.Millisecond * 100
@@ -88,11 +88,11 @@ func makeTestDB() (*channeldb.DB, func(), error) {
 }
 
 type mockSigner struct {
-	privKey *btcec.PrivateKey
+	privKey *secp256k1.PrivateKey
 }
 
-func (n *mockSigner) SignMessage(pubKey *btcec.PublicKey,
-	msg []byte) (*btcec.Signature, error) {
+func (n *mockSigner) SignMessage(pubKey *secp256k1.PublicKey,
+	msg []byte) (*secp256k1.Signature, error) {
 
 	if !pubKey.IsEqual(n.privKey.PubKey()) {
 		return nil, fmt.Errorf("unknown public key")
@@ -328,7 +328,7 @@ func createAnnouncements(blockHeight uint32) (*annBatch, error) {
 
 }
 
-func createNodeAnnouncement(priv *btcec.PrivateKey,
+func createNodeAnnouncement(priv *secp256k1.PrivateKey,
 	timestamp uint32) (*lnwire.NodeAnnouncement,
 	error) {
 	var err error
@@ -461,7 +461,7 @@ func createTestCtx(startHeight uint32) (*testCtx, func(), error) {
 
 			return nil
 		},
-		SendToPeer: func(target *btcec.PublicKey, msg ...lnwire.Message) error {
+		SendToPeer: func(target *secp256k1.PublicKey, msg ...lnwire.Message) error {
 			return nil
 		},
 		Router:           router,

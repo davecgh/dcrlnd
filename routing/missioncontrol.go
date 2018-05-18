@@ -4,7 +4,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/lightningnetwork/lnd/channeldb"
+	"github.com/decred/dcrlnd/channeldb"
 )
 
 const (

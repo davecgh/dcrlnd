@@ -1,4 +1,4 @@
-package btcwallet
+package dcrwallet
 
 import (
 	"bytes"
@@ -8,21 +8,21 @@ import (
 	"sync"
 	"time"
 
-	"github.com/lightningnetwork/lnd/lnwallet"
-	"github.com/roasbeef/btcd/btcec"
-	"github.com/roasbeef/btcd/chaincfg"
-	"github.com/roasbeef/btcd/chaincfg/chainhash"
-	"github.com/roasbeef/btcd/txscript"
-	"github.com/roasbeef/btcd/wire"
-	"github.com/roasbeef/btcutil"
-	"github.com/roasbeef/btcwallet/chain"
-	"github.com/roasbeef/btcwallet/waddrmgr"
-	base "github.com/roasbeef/btcwallet/wallet"
-	"github.com/roasbeef/btcwallet/walletdb"
+	"github.com/decred/dcrd/chaincfg"
+	"github.com/decred/dcrd/chaincfg/chainhash"
+	"github.com/decred/dcrd/dcrutil"
+	"github.com/decred/dcrd/txscript"
+	"github.com/decred/dcrd/wire"
+	"github.com/decred/dcrlnd/lnwallet"
+	//"github.com/decred/dcrwallet/chain" // TODO(davec): Uncomment
+	"github.com/decred/dcrd/dcrec/secp256k1"
+	base "github.com/decred/dcrwallet/wallet"
+	"github.com/decred/dcrwallet/wallet/udb"
+	"github.com/decred/dcrwallet/walletdb"
 )
 
 const (
-	defaultAccount = uint32(waddrmgr.DefaultAccountNum)
+	defaultAccount = uint32(udb.DefaultAccountNum)
 )
 
 var (
@@ -31,15 +31,13 @@ var (
 	waddrmgrNamespaceKey = []byte("waddrmgr")
 )
 
-// BtcWallet is an implementation of the lnwallet.WalletController interface
-// backed by an active instance of btcwallet. At the time of the writing of
-// this documentation, this implementation requires a full btcd node to
+// DcrWallet is an implementation of the lnwallet.WalletController interface
+// backed by an active instance of dcrwallet. At the time of the writing of
+// this documentation, this implementation requires a full dcrd node to
 // operate.
-type BtcWallet struct {
-	// wallet is an active instance of btcwallet.
+type DcrWallet struct {
+	// wallet is an active instance of dcrwallet.
 	wallet *base.Wallet
-
-	chain chain.Interface
 
 	db walletdb.DB
 
@@ -53,13 +51,13 @@ type BtcWallet struct {
 	cacheMtx  sync.RWMutex
 }
 
-// A compile time check to ensure that BtcWallet implements the
+// A compile time check to ensure that DcrWallet implements the
 // WalletController interface.
-var _ lnwallet.WalletController = (*BtcWallet)(nil)
+var _ lnwallet.WalletController = (*DcrWallet)(nil)
 
-// New returns a new fully initialized instance of BtcWallet given a valid
+// New returns a new fully initialized instance of DcrWallet given a valid
 // configuration struct.
-func New(cfg Config) (*BtcWallet, error) {
+func New(cfg Config) (*DcrWallet, error) {
 	// Ensure the wallet exists or create it when the create flag is set.
 	netDir := NetworkDir(cfg.DataDir, cfg.NetParams)
 
@@ -109,7 +107,7 @@ func New(cfg Config) (*BtcWallet, error) {
 		return nil, err
 	}
 
-	return &BtcWallet{
+	return &DcrWallet{
 		cfg:       &cfg,
 		wallet:    wallet,
 		db:        db,
@@ -122,7 +120,7 @@ func New(cfg Config) (*BtcWallet, error) {
 // BackEnd returns the underlying ChainService's name as a string.
 //
 // This is a part of the WalletController interface.
-func (b *BtcWallet) BackEnd() string {
+func (b *DcrWallet) BackEnd() string {
 	if b.chain != nil {
 		return b.chain.BackEnd()
 	}
@@ -134,14 +132,14 @@ func (b *BtcWallet) BackEnd() string {
 // begins syncing to the current available blockchain state.
 //
 // This is a part of the WalletController interface.
-func (b *BtcWallet) Start() error {
+func (b *DcrWallet) Start() error {
 	// Establish an RPC connection in addition to starting the goroutines
 	// in the underlying wallet.
 	if err := b.chain.Start(); err != nil {
 		return err
 	}
 
-	// Start the underlying btcwallet core.
+	// Start the underlying dcrwallet core.
 	b.wallet.Start()
 
 	// Pass the rpc client into the wallet so it can sync up to the
@@ -159,7 +157,7 @@ func (b *BtcWallet) Start() error {
 // any active sockets, database handles, stopping goroutines, etc.
 //
 // This is a part of the WalletController interface.
-func (b *BtcWallet) Stop() error {
+func (b *DcrWallet) Stop() error {
 	b.wallet.Stop()
 
 	b.wallet.WaitForShutdown()
@@ -175,8 +173,8 @@ func (b *BtcWallet) Stop() error {
 // final sum.
 //
 // This is a part of the WalletController interface.
-func (b *BtcWallet) ConfirmedBalance(confs int32, witness bool) (btcutil.Amount, error) {
-	var balance btcutil.Amount
+func (b *DcrWallet) ConfirmedBalance(confs int32, witness bool) (dcrutil.Amount, error) {
+	var balance dcrutil.Amount
 
 	if witness {
 		witnessOutputs, err := b.ListUnspentWitness(confs)
@@ -205,8 +203,8 @@ func (b *BtcWallet) ConfirmedBalance(confs int32, witness bool) (btcutil.Amount,
 // returned.
 //
 // This is a part of the WalletController interface.
-func (b *BtcWallet) NewAddress(t lnwallet.AddressType, change bool) (btcutil.Address, error) {
-	var addrType waddrmgr.AddressType
+func (b *DcrWallet) NewAddress(t lnwallet.AddressType, change bool) (dcrutil.Address, error) {
+	var addrType udb.AddressType
 
 	switch t {
 	case lnwallet.WitnessPubKey:
@@ -231,7 +229,7 @@ func (b *BtcWallet) NewAddress(t lnwallet.AddressType, change bool) (btcutil.Add
 // non-nil error will be returned.
 //
 // This is a part of the WalletController interface.
-func (b *BtcWallet) GetPrivKey(a btcutil.Address) (*btcec.PrivateKey, error) {
+func (b *DcrWallet) GetPrivKey(a dcrutil.Address) (*secp256k1.PrivateKey, error) {
 	// Using the ID address, request the private key corresponding to the
 	// address from the wallet's address manager.
 	return b.wallet.PrivKeyForAddress(a)
@@ -242,7 +240,7 @@ func (b *BtcWallet) GetPrivKey(a btcutil.Address) (*btcec.PrivateKey, error) {
 // transaction's outputs.
 //
 // This is a part of the WalletController interface.
-func (b *BtcWallet) NewRawKey() (*btcec.PublicKey, error) {
+func (b *DcrWallet) NewRawKey() (*secp256k1.PublicKey, error) {
 	addr, err := b.wallet.NewAddress(defaultAccount,
 		waddrmgr.WitnessPubKey)
 	if err != nil {
@@ -256,7 +254,7 @@ func (b *BtcWallet) NewRawKey() (*btcec.PublicKey, error) {
 // seed/salt to generate any Lightning specific secrets.
 //
 // This is a part of the WalletController interface.
-func (b *BtcWallet) FetchRootKey() (*btcec.PrivateKey, error) {
+func (b *DcrWallet) FetchRootKey() (*secp256k1.PrivateKey, error) {
 	// Fetch the root address hash from the database, this is persisted
 	// locally within the database, then used to obtain the key from the
 	// wallet based on the address hash.
@@ -295,7 +293,7 @@ func (b *BtcWallet) FetchRootKey() (*btcec.PrivateKey, error) {
 	// With the root address hash obtained, generate the corresponding
 	// address, then retrieve the managed address from the wallet which
 	// will allow us to obtain the private key.
-	rootAddr, err := btcutil.NewAddressWitnessPubKeyHash(rootAddrHash,
+	rootAddr, err := dcrutil.NewAddressWitnessPubKeyHash(rootAddrHash,
 		b.netParams)
 	if err != nil {
 		return nil, err
@@ -314,8 +312,8 @@ func (b *BtcWallet) FetchRootKey() (*btcec.PrivateKey, error) {
 // outputs are non-standard, a non-nil error will be be returned.
 //
 // This is a part of the WalletController interface.
-func (b *BtcWallet) SendOutputs(outputs []*wire.TxOut,
-	feeSatPerByte btcutil.Amount) (*chainhash.Hash, error) {
+func (b *DcrWallet) SendOutputs(outputs []*wire.TxOut,
+	feeSatPerByte dcrutil.Amount) (*chainhash.Hash, error) {
 
 	// The fee rate is passed in using units of sat/byte, so we'll scale
 	// this up to sat/KB as the SendOutputs method requires this unit.
@@ -330,7 +328,7 @@ func (b *BtcWallet) SendOutputs(outputs []*wire.TxOut,
 // channel.
 //
 // This is a part of the WalletController interface.
-func (b *BtcWallet) LockOutpoint(o wire.OutPoint) {
+func (b *DcrWallet) LockOutpoint(o wire.OutPoint) {
 	b.wallet.LockOutpoint(o)
 }
 
@@ -338,7 +336,7 @@ func (b *BtcWallet) LockOutpoint(o wire.OutPoint) {
 // coin selection.
 //
 // This is a part of the WalletController interface.
-func (b *BtcWallet) UnlockOutpoint(o wire.OutPoint) {
+func (b *DcrWallet) UnlockOutpoint(o wire.OutPoint) {
 	b.wallet.UnlockOutpoint(o)
 }
 
@@ -346,7 +344,7 @@ func (b *BtcWallet) UnlockOutpoint(o wire.OutPoint) {
 // controls which pay to witness programs either directly or indirectly.
 //
 // This is a part of the WalletController interface.
-func (b *BtcWallet) ListUnspentWitness(minConfs int32) ([]*lnwallet.Utxo, error) {
+func (b *DcrWallet) ListUnspentWitness(minConfs int32) ([]*lnwallet.Utxo, error) {
 	// First, grab all the unfiltered currently unspent outputs.
 	maxConfs := int32(math.MaxInt32)
 	unspentOutputs, err := b.wallet.ListUnspent(minConfs, maxConfs, nil)
@@ -369,7 +367,7 @@ func (b *BtcWallet) ListUnspentWitness(minConfs int32) ([]*lnwallet.Utxo, error)
 		} else if txscript.IsPayToScriptHash(pkScript) {
 			// TODO(roasbeef): This assumes all p2sh outputs returned by the
 			// wallet are nested p2pkh. We can't check the redeem script because
-			// the btcwallet service does not include it.
+			// the dcrwallet service does not include it.
 			addressType = lnwallet.NestedWitnessPubKey
 		}
 
@@ -383,7 +381,7 @@ func (b *BtcWallet) ListUnspentWitness(minConfs int32) ([]*lnwallet.Utxo, error)
 
 			utxo := &lnwallet.Utxo{
 				AddressType: addressType,
-				Value:       btcutil.Amount(output.Amount * 1e8),
+				Value:       dcrutil.Amount(output.Amount * 1e8),
 				PkScript:    pkScript,
 				OutPoint: wire.OutPoint{
 					Hash:  *txid,
@@ -400,7 +398,7 @@ func (b *BtcWallet) ListUnspentWitness(minConfs int32) ([]*lnwallet.Utxo, error)
 
 // PublishTransaction performs cursory validation (dust checks, etc), then
 // finally broadcasts the passed transaction to the Bitcoin network.
-func (b *BtcWallet) PublishTransaction(tx *wire.MsgTx) error {
+func (b *DcrWallet) PublishTransaction(tx *wire.MsgTx) error {
 	return b.wallet.PublishTransaction(tx)
 }
 
@@ -409,16 +407,16 @@ func (b *BtcWallet) PublishTransaction(tx *wire.MsgTx) error {
 func extractBalanceDelta(
 	txSummary base.TransactionSummary,
 	tx *wire.MsgTx,
-) (btcutil.Amount, error) {
+) (dcrutil.Amount, error) {
 	// For each input we debit the wallet's outflow for this transaction,
 	// and for each output we credit the wallet's inflow for this
 	// transaction.
-	var balanceDelta btcutil.Amount
+	var balanceDelta dcrutil.Amount
 	for _, input := range txSummary.MyInputs {
 		balanceDelta -= input.PreviousAmount
 	}
 	for _, output := range txSummary.MyOutputs {
-		balanceDelta += btcutil.Amount(tx.TxOut[output.Index].Value)
+		balanceDelta += dcrutil.Amount(tx.TxOut[output.Index].Value)
 	}
 
 	return balanceDelta, nil
@@ -441,7 +439,7 @@ func minedTransactionsToDetails(
 			return nil, err
 		}
 
-		var destAddresses []btcutil.Address
+		var destAddresses []dcrutil.Address
 		for _, txOut := range wireTx.TxOut {
 			_, outAddresses, _, err :=
 				txscript.ExtractPkScriptAddrs(txOut.PkScript, chainParams)
@@ -505,7 +503,7 @@ func unminedTransactionsToDetail(
 // relevant to the wallet.
 //
 // This is a part of the WalletController interface.
-func (b *BtcWallet) ListTransactionDetails() ([]*lnwallet.TransactionDetail, error) {
+func (b *DcrWallet) ListTransactionDetails() ([]*lnwallet.TransactionDetail, error) {
 	// Grab the best block the wallet knows of, we'll use this to calculate
 	// # of confirmations shortly below.
 	bestBlock := b.wallet.Manager.SyncedTo()
@@ -647,7 +645,7 @@ out:
 // blocks.
 //
 // This is a part of the WalletController interface.
-func (b *BtcWallet) SubscribeTransactions() (lnwallet.TransactionSubscription, error) {
+func (b *DcrWallet) SubscribeTransactions() (lnwallet.TransactionSubscription, error) {
 	walletClient := b.wallet.NtfnServer.TransactionNotifications()
 
 	txClient := &txSubscriptionClient{
@@ -667,7 +665,7 @@ func (b *BtcWallet) SubscribeTransactions() (lnwallet.TransactionSubscription, e
 // it has fully synced to the current best block in the main chain.
 //
 // This is a part of the WalletController interface.
-func (b *BtcWallet) IsSynced() (bool, error) {
+func (b *DcrWallet) IsSynced() (bool, error) {
 	// Grab the best chain state the wallet is currently aware of.
 	syncState := b.wallet.Manager.SyncedTo()
 

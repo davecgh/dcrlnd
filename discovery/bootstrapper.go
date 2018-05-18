@@ -10,11 +10,11 @@ import (
 	"strings"
 
 	"github.com/davecgh/go-spew/spew"
-	"github.com/lightningnetwork/lnd/autopilot"
-	"github.com/lightningnetwork/lnd/lnwire"
+	"github.com/decred/dcrd/dcrec/secp256k1"
+	"github.com/decred/dcrlnd/autopilot"
+	"github.com/decred/dcrlnd/lnwire"
 	"github.com/miekg/dns"
-	"github.com/roasbeef/btcd/btcec"
-	"github.com/roasbeef/btcutil/bech32"
+	"github.com/roasbeef/btcutil/bech32" // TODO(davec): dcrutil...
 )
 
 // NetworkPeerBootstrapper is an interface that represents an initial peer
@@ -422,9 +422,8 @@ search:
 				if err != nil {
 					return nil, err
 				}
-				nodeKey, err := btcec.ParsePubKey(
-					nodeBytes, btcec.S256(),
-				)
+				nodeKey, err := secp256k1.ParsePubKey(
+					nodeBytes)
 				if err != nil {
 					return nil, err
 				}

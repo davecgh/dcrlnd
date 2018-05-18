@@ -5,9 +5,9 @@ import (
 	"sync/atomic"
 
 	"github.com/davecgh/go-spew/spew"
-	"github.com/lightningnetwork/lnd/lnwire"
-	"github.com/roasbeef/btcd/btcec"
-	"github.com/roasbeef/btcutil"
+	"github.com/decred/dcrd/dcrec/secp256k1"
+	"github.com/decred/dcrd/dcrutil"
+	"github.com/decred/dcrlnd/lnwire"
 )
 
 // Config couples all the items that that an autopilot agent needs to function.
@@ -17,7 +17,7 @@ type Config struct {
 	// Self is the identity public key of the Lightning Network node that
 	// is being driven by the agent. This is used to ensure that we don't
 	// accidentally attempt to open a channel with ourselves.
-	Self *btcec.PublicKey
+	Self *secp256k1.PublicKey
 
 	// Heuristic is an attachment heuristic which will govern to whom we
 	// open channels to, and also what those channels look like in terms of
@@ -34,7 +34,7 @@ type Config struct {
 
 	// WalletBalance is a function closure that should return the current
 	// available balance o the backing wallet.
-	WalletBalance func() (btcutil.Amount, error)
+	WalletBalance func() (dcrutil.Amount, error)
 
 	// Graph is an abstract channel graph that the Heuristic and the Agent
 	// will use to make decisions w.r.t channel allocation and placement
@@ -76,8 +76,8 @@ func (c channelState) ConnectedNodes() map[NodeID]struct{} {
 }
 
 // Agent implements a closed-loop control system which seeks to autonomously
-// optimize the allocation of satoshis within channels throughput the network's
-// channel graph. An agent is configurable by swapping out different
+// optimize the allocation of base units within channels throughput the
+// network's channel graph. An agent is configurable by swapping out different
 // AttachmentHeuristic strategies. The agent uses external signals such as the
 // wallet balance changing, or new channels being opened/closed for the local
 // node as an indicator to re-examine its internal state, and the amount of
@@ -101,10 +101,10 @@ type Agent struct {
 	// affect the heuristics of the agent will be sent over.
 	stateUpdates chan interface{}
 
-	// totalBalance is the total number of satoshis the backing wallet is
+	// totalBalance is the total number of base units the backing wallet is
 	// known to control at any given instance. This value will be updated
 	// when the agent receives external balance update signals.
-	totalBalance btcutil.Amount
+	totalBalance dcrutil.Amount
 
 	quit chan struct{}
 	wg   sync.WaitGroup
@@ -167,7 +167,7 @@ func (a *Agent) Stop() error {
 // balanceUpdate is a type of external state update that reflects an
 // increase/decrease in the funds currently available to the wallet.
 type balanceUpdate struct {
-	balanceDelta btcutil.Amount
+	balanceDelta dcrutil.Amount
 }
 
 // chanOpenUpdate is a type of external state update the indicates a new
@@ -185,7 +185,7 @@ type chanCloseUpdate struct {
 
 // OnBalanceChange is a callback that should be executed each the balance of
 // the backing wallet changes.
-func (a *Agent) OnBalanceChange(delta btcutil.Amount) {
+func (a *Agent) OnBalanceChange(delta dcrutil.Amount) {
 	go func() {
 		a.stateUpdates <- &balanceUpdate{
 			balanceDelta: delta,
@@ -257,7 +257,7 @@ func mergeChanState(pendingChans map[NodeID]Channel,
 // and external state changes as a result of decisions it  makes w.r.t channel
 // allocation, or attributes affecting its control loop being updated by the
 // backing Lightning Node.
-func (a *Agent) controller(startingBalance btcutil.Amount) {
+func (a *Agent) controller(startingBalance dcrutil.Amount) {
 	defer a.wg.Done()
 
 	// We'll start off by assigning our starting balance, and injecting

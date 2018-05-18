@@ -3,8 +3,8 @@ package lnwire
 import (
 	"io"
 
-	"github.com/roasbeef/btcd/btcec"
-	"github.com/roasbeef/btcutil"
+	"github.com/decred/dcrd/dcrec/secp256k1"
+	"github.com/decred/dcrd/dcrutil"
 )
 
 // AcceptChannel is the message Bob sends to Alice after she initiates the
@@ -20,7 +20,7 @@ type AcceptChannel struct {
 	// would like enforced on their version of the commitment transaction.
 	// Any output below this value will be "trimmed" from the commitment
 	// transaction, with the amount of the HTLC going to dust.
-	DustLimit btcutil.Amount
+	DustLimit dcrutil.Amount
 
 	// MaxValueInFlight represents the maximum amount of coins that can be
 	// pending within the channel at any given time. If the amount of funds
@@ -31,7 +31,7 @@ type AcceptChannel struct {
 	// maintain a balance above at all times. This is a safety mechanism to
 	// ensure that both sides always have skin in the game during the
 	// channel's lifetime.
-	ChannelReserve btcutil.Amount
+	ChannelReserve dcrutil.Amount
 
 	// HtlcMinimum is the smallest HTLC that the sender of this message
 	// will accept.
@@ -54,38 +54,38 @@ type AcceptChannel struct {
 	// FundingKey is the key that should be used on behalf of the sender
 	// within the 2-of-2 multi-sig output that it contained within the
 	// funding transaction.
-	FundingKey *btcec.PublicKey
+	FundingKey *secp256k1.PublicKey
 
 	// RevocationPoint is the base revocation point for the sending party.
 	// Any commitment transaction belonging to the receiver of this message
 	// should use this key and their per-commitment point to derive the
 	// revocation key for the commitment transaction.
-	RevocationPoint *btcec.PublicKey
+	RevocationPoint *secp256k1.PublicKey
 
 	// PaymentPoint is the base payment point for the sending party. This
 	// key should be combined with the per commitment point for a
 	// particular commitment state in order to create the key that should
 	// be used in any output that pays directly to the sending party, and
 	// also within the HTLC covenant transactions.
-	PaymentPoint *btcec.PublicKey
+	PaymentPoint *secp256k1.PublicKey
 
 	// DelayedPaymentPoint is the delay point for the sending party. This
 	// key should be combined with the per commitment point to derive the
 	// keys that are used in outputs of the sender's commitment transaction
 	// where they claim funds.
-	DelayedPaymentPoint *btcec.PublicKey
+	DelayedPaymentPoint *secp256k1.PublicKey
 
 	// HtlcPoint is the base point used to derive the set of keys for this
 	// party that will be used within the HTLC public key scripts.  This
 	// value is combined with the receiver's revocation base point in order
 	// to derive the keys that are used within HTLC scripts.
-	HtlcPoint *btcec.PublicKey
+	HtlcPoint *secp256k1.PublicKey
 
 	// FirstCommitmentPoint is the first commitment point for the sending
 	// party. This value should be combined with the receiver's revocation
 	// base point in order to derive the revocation keys that are placed
 	// within the commitment transaction of the sender.
-	FirstCommitmentPoint *btcec.PublicKey
+	FirstCommitmentPoint *secp256k1.PublicKey
 }
 
 // A compile time check to ensure AcceptChannel implements the lnwire.Message

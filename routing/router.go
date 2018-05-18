@@ -2,6 +2,7 @@ package routing
 
 import (
 	"bytes"
+	"crypto/sha256"
 	"fmt"
 	"runtime"
 	"sort"
@@ -11,19 +12,17 @@ import (
 
 	"github.com/boltdb/bolt"
 	"github.com/davecgh/go-spew/spew"
-	"github.com/lightningnetwork/lnd/channeldb"
-	"github.com/lightningnetwork/lnd/htlcswitch"
-	"github.com/lightningnetwork/lnd/lnwallet"
-	"github.com/lightningnetwork/lnd/lnwire"
-	"github.com/lightningnetwork/lnd/routing/chainview"
-	"github.com/roasbeef/btcd/btcec"
-	"github.com/roasbeef/btcd/wire"
-	"github.com/roasbeef/btcutil"
-
-	"crypto/sha256"
+	"github.com/decred/dcrd/dcrec/secp256k1"
+	"github.com/decred/dcrd/wire"
+	"github.com/decred/dcrlnd/channeldb"
+	//"github.com/decred/dcrlnd/htlcswitch" // TODO(davec): Uncomment.
+	//"github.com/decred/dcrlnd/lnwallet" // TODO(davec): Uncomment.
+	"github.com/decred/dcrd/dcrutil"
+	"github.com/decred/dcrlnd/lnwire"
+	"github.com/decred/dcrlnd/routing/chainview"
 
 	"github.com/go-errors/errors"
-	"github.com/lightningnetwork/lightning-onion"
+	"github.com/lightningnetwork/lightning-onion" // TODO(davec): ok?
 )
 
 const (
@@ -129,7 +128,7 @@ type Config struct {
 	// forward a fully encoded payment to the first hop in the route
 	// denoted by its public key. A non-nil error is to be returned if the
 	// payment was unsuccessful.
-	SendToSwitch func(firstHop *btcec.PublicKey, htlcAdd *lnwire.UpdateAddHTLC,
+	SendToSwitch func(firstHop *secp256k1.PublicKey, htlcAdd *lnwire.UpdateAddHTLC,
 		circuit *sphinx.Circuit) ([sha256.Size]byte, error)
 
 	// ChannelPruneExpiry is the duration used to determine if a channel
@@ -1022,7 +1021,7 @@ func (r *ChannelRouter) processUpdate(msg interface{}) error {
 
 		// TODO(roasbeef): this is a hack, needs to be removed
 		// after commitment fees are dynamic.
-		msg.Capacity = btcutil.Amount(chanUtxo.Value)
+		msg.Capacity = dcrutil.Amount(chanUtxo.Value)
 		msg.ChannelPoint = *fundingPoint
 		if err := r.cfg.Graph.AddChannelEdge(msg); err != nil {
 			return errors.Errorf("unable to add edge: %v", err)
@@ -1237,7 +1236,7 @@ func pruneChannelFromRoutes(routes []*Route, skipChan uint64) []*Route {
 // required fee and time lock values running backwards along the route. The
 // route that will be ranked the highest is the one with the lowest cumulative
 // fee along the route.
-func (r *ChannelRouter) FindRoutes(target *btcec.PublicKey,
+func (r *ChannelRouter) FindRoutes(target *secp256k1.PublicKey,
 	amt lnwire.MilliSatoshi, finalExpiry ...uint16) ([]*Route, error) {
 
 	var finalCLTVDelta uint16
@@ -1374,13 +1373,13 @@ func generateSphinxPacket(route *Route, paymentHash []byte) ([]byte,
 	*sphinx.Circuit, error) {
 	// First obtain all the public keys along the route which are contained
 	// in each hop.
-	nodes := make([]*btcec.PublicKey, len(route.Hops))
+	nodes := make([]*secp256k1.PublicKey, len(route.Hops))
 	for i, hop := range route.Hops {
 		// We create a new instance of the public key to avoid possibly
 		// mutating the curve parameters, which are unset in a higher
 		// level in order to avoid spamming the logs.
-		pub := btcec.PublicKey{
-			Curve: btcec.S256(),
+		pub := secp256k1.PublicKey{
+			Curve: secp256k1.S256(),
 			X:     hop.Channel.Node.PubKey.X,
 			Y:     hop.Channel.Node.PubKey.Y,
 		}
@@ -1395,7 +1394,7 @@ func generateSphinxPacket(route *Route, paymentHash []byte) ([]byte,
 	log.Tracef("Constructed per-hop payloads for payment_hash=%x: %v",
 		paymentHash[:], spew.Sdump(hopPayloads))
 
-	sessionKey, err := btcec.NewPrivateKey(btcec.S256())
+	sessionKey, err := secp256k1.GeneratePrivateKey()
 	if err != nil {
 		return nil, nil, err
 	}
@@ -1434,7 +1433,7 @@ func generateSphinxPacket(route *Route, paymentHash []byte) ([]byte,
 // final destination.
 type LightningPayment struct {
 	// Target is the node in which the payment should be routed towards.
-	Target *btcec.PublicKey
+	Target *secp256k1.PublicKey
 
 	// Amount is the value of the payment to send through the network in
 	// milli-satoshis.

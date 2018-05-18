@@ -3,8 +3,6 @@ package shachain
 import (
 	"crypto/sha256"
 	"errors"
-
-	"github.com/roasbeef/btcd/chaincfg/chainhash"
 )
 
 // element represents the entity which contains the hash and index
@@ -13,12 +11,12 @@ import (
 // another element.
 type element struct {
 	index index
-	hash  chainhash.Hash
+	hash  ShaHash
 }
 
 // newElementFromStr creates new element from the given hash string.
 func newElementFromStr(s string, index index) (*element, error) {
-	hash, err := hashFromString(s)
+	hash, err := NewHashFromStr(s)
 	if err != nil {
 		return nil, err
 	}
@@ -39,7 +37,7 @@ func (e *element) derive(toIndex index) (*element, error) {
 		return nil, err
 	}
 
-	buf := e.hash.CloneBytes()
+	buf := e.hash
 	for _, position := range positions {
 		// Flip the bit and then hash the current state.
 		byteNumber := position / 8
@@ -47,25 +45,18 @@ func (e *element) derive(toIndex index) (*element, error) {
 
 		buf[byteNumber] ^= (1 << bitNumber)
 
-		h := sha256.Sum256(buf)
-		buf = h[:]
-	}
-
-	hash, err := chainhash.NewHash(buf)
-	if err != nil {
-		return nil, err
+		buf = sha256.Sum256(buf[:])
 	}
 
 	return &element{
 		index: toIndex,
-		hash:  *hash,
+		hash:  buf,
 	}, nil
 }
 
 // isEqual returns true if two elements are identical and false otherwise.
 func (e *element) isEqual(e2 *element) bool {
-	return (e.index == e2.index) &&
-		(&e.hash).IsEqual(&e2.hash)
+	return (e.index == e2.index) && e.hash == e2.hash
 }
 
 const (

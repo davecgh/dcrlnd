@@ -2,9 +2,9 @@ package lnwallet
 
 import (
 	"github.com/btcsuite/btclog"
-	"github.com/roasbeef/btcwallet/chain"
-	btcwallet "github.com/roasbeef/btcwallet/wallet"
-	"github.com/roasbeef/btcwallet/wtxmgr"
+	"github.com/decred/dcrwallet/chain"
+	dcrwallet "github.com/decred/dcrwallet/wallet"
+	//"github.com/decred/dcrwallet/wallet/udb" // TODO(davec): Vendor
 )
 
 // walletLog is a logger that is initialized with no output filters.  This
@@ -29,8 +29,8 @@ func DisableLog() {
 func UseLogger(logger btclog.Logger) {
 	walletLog = logger
 
-	btcwallet.UseLogger(logger)
-	wtxmgr.UseLogger(logger)
+	dcrwallet.UseLogger(logger)
+	//udb.UseLogger(logger) // TODO(davec): Uncomment
 	chain.UseLogger(logger)
 }
 

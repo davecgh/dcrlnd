@@ -12,21 +12,20 @@ import (
 	"sync"
 	"time"
 
+	"github.com/decred/dcrd/chaincfg/chainhash"
+	"github.com/decred/dcrd/dcrutil"
+	"github.com/decred/dcrd/rpcclient"
+	"github.com/decred/dcrlnd/chainntnfs"
+	"github.com/decred/dcrlnd/chainntnfs/dcrdnotify"
+	"github.com/decred/dcrlnd/channeldb"
+	"github.com/decred/dcrlnd/htlcswitch"
+	"github.com/decred/dcrlnd/lnwallet"
+	"github.com/decred/dcrlnd/lnwallet/dcrwallet"
+	"github.com/decred/dcrlnd/lnwire"
+	"github.com/decred/dcrlnd/routing/chainview"
+	"github.com/decred/dcrwallet/chain"
+	"github.com/decred/dcrwallet/walletdb"
 	"github.com/lightninglabs/neutrino"
-	"github.com/lightningnetwork/lnd/chainntnfs"
-	"github.com/lightningnetwork/lnd/chainntnfs/bitcoindnotify"
-	"github.com/lightningnetwork/lnd/chainntnfs/btcdnotify"
-	"github.com/lightningnetwork/lnd/chainntnfs/neutrinonotify"
-	"github.com/lightningnetwork/lnd/channeldb"
-	"github.com/lightningnetwork/lnd/htlcswitch"
-	"github.com/lightningnetwork/lnd/lnwallet"
-	"github.com/lightningnetwork/lnd/lnwallet/btcwallet"
-	"github.com/lightningnetwork/lnd/routing/chainview"
-	"github.com/roasbeef/btcd/chaincfg/chainhash"
-	"github.com/roasbeef/btcd/rpcclient"
-	"github.com/roasbeef/btcutil"
-	"github.com/roasbeef/btcwallet/chain"
-	"github.com/roasbeef/btcwallet/walletdb"
 )
 
 // defaultChannelConstraints is the default set of channel constraints that are
@@ -85,9 +84,8 @@ type chainControl struct {
 }
 
 // newChainControlFromConfig attempts to create a chainControl instance
-// according to the parameters in the passed lnd configuration. Currently two
-// branches of chainControl instances exist: one backed by a running btcd
-// full-node, and the other backed by a running neutrino light client instance.
+// according to the parameters in the passed lnd configuration. Currently only
+// one chainControl instance exists: one backed by a running dcrd full-node.
 func newChainControlFromConfig(cfg *config, chanDB *channeldb.DB,
 	privateWalletPw, publicWalletPw []byte) (*chainControl, func(), error) {
 
@@ -128,7 +126,7 @@ func newChainControlFromConfig(cfg *config, chanDB *channeldb.DB,
 			"chain %v is unknown", registeredChains.PrimaryChain())
 	}
 
-	walletConfig := &btcwallet.Config{
+	walletConfig := &dcrwallet.Config{
 		PrivatePass:  privateWalletPw,
 		PublicPass:   publicWalletPw,
 		DataDir:      homeChainConfig.ChainDir,
@@ -187,7 +185,7 @@ func newChainControlFromConfig(cfg *config, chanDB *channeldb.DB,
 			return nil, nil, err
 		}
 
-		// Finally, we'll set the chain source for btcwallet, and
+		// Finally, we'll set the chain source for dcrwallet, and
 		// create our clean up function which simply closes the
 		// database.
 		walletConfig.ChainSource = chain.NewNeutrinoClient(svc)
@@ -276,7 +274,7 @@ func newChainControlFromConfig(cfg *config, chanDB *channeldb.DB,
 			// if we're using bitcoind as a backend, then we can
 			// use live fee estimates, rather than a statically
 			// coded value.
-			fallBackFeeRate := btcutil.Amount(25)
+			fallBackFeeRate := dcrutil.Amount(25)
 			cc.feeEstimator, err = lnwallet.NewBitcoindFeeEstimator(
 				*rpcConfig, fallBackFeeRate,
 			)
@@ -290,7 +288,7 @@ func newChainControlFromConfig(cfg *config, chanDB *channeldb.DB,
 	case "btcd":
 		// Otherwise, we'll be speaking directly via RPC to a node.
 		//
-		// So first we'll load btcd/ltcd's TLS cert for the RPC
+		// So first we'll load dcrd's TLS cert for the RPC
 		// connection. If a raw cert was specified in the config, then
 		// we'll set that directly. Otherwise, we attempt to read the
 		// cert from the path specified in the config.
@@ -321,7 +319,7 @@ func newChainControlFromConfig(cfg *config, chanDB *channeldb.DB,
 			}
 		}
 
-		// If the specified host for the btcd/ltcd RPC server already
+		// If the specified host for the btcd RPC server already
 		// has a port specified, then we use that directly. Otherwise,
 		// we assume the default port according to the selected chain
 		// parameters.
@@ -380,7 +378,7 @@ func newChainControlFromConfig(cfg *config, chanDB *channeldb.DB,
 			// if we're using btcd as a backend, then we can use
 			// live fee estimates, rather than a statically coded
 			// value.
-			fallBackFeeRate := btcutil.Amount(25)
+			fallBackFeeRate := dcrutil.Amount(25)
 			cc.feeEstimator, err = lnwallet.NewBtcdFeeEstimator(
 				*rpcConfig, fallBackFeeRate,
 			)

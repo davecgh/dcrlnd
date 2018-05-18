@@ -9,8 +9,8 @@ import (
 	"sync"
 
 	"github.com/boltdb/bolt"
-	"github.com/roasbeef/btcd/btcec"
-	"github.com/roasbeef/btcd/wire"
+	"github.com/decred/dcrd/dcrec/secp256k1"
+	"github.com/decred/dcrd/wire"
 )
 
 const (
@@ -217,7 +217,7 @@ func fileExists(path string) bool {
 // associated with the target nodeID. In the case that no active channels are
 // known to have been created with this node, then a zero-length slice is
 // returned.
-func (d *DB) FetchOpenChannels(nodeID *btcec.PublicKey) ([]*OpenChannel, error) {
+func (d *DB) FetchOpenChannels(nodeID *secp256k1.PublicKey) ([]*OpenChannel, error) {
 	var channels []*OpenChannel
 	err := d.View(func(tx *bolt.Tx) error {
 		// Get the bucket dedicated to storing the metadata for open

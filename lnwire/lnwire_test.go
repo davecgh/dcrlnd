@@ -13,10 +13,10 @@ import (
 	"testing/quick"
 
 	"github.com/davecgh/go-spew/spew"
-	"github.com/roasbeef/btcd/btcec"
-	"github.com/roasbeef/btcd/chaincfg/chainhash"
-	"github.com/roasbeef/btcd/wire"
-	"github.com/roasbeef/btcutil"
+	"github.com/decred/dcrd/chaincfg/chainhash"
+	"github.com/decred/dcrd/dcrec/secp256k1"
+	"github.com/decred/dcrd/dcrutil"
+	"github.com/decred/dcrd/wire"
 )
 
 var (
@@ -29,8 +29,8 @@ var (
 
 	shaHash1Bytes, _ = hex.DecodeString("e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855")
 	shaHash1, _      = chainhash.NewHash(shaHash1Bytes)
-	outpoint1        = wire.NewOutPoint(shaHash1, 0)
-	testSig          = &btcec.Signature{
+	outpoint1        = wire.NewOutPoint(shaHash1, 0, wire.TxTreeRegular)
+	testSig          = &secp256k1.Signature{
 		R: new(big.Int),
 		S: new(big.Int),
 	}
@@ -43,13 +43,13 @@ var (
 	testAddrs = []net.Addr{a1, a2}
 )
 
-func randPubKey() (*btcec.PublicKey, error) {
-	priv, err := btcec.NewPrivateKey(btcec.S256())
+func randPubKey() (*secp256k1.PublicKey, error) {
+	priv, err := secp256k1.GeneratePrivateKey()
 	if err != nil {
 		return nil, err
 	}
 
-	return priv.PubKey(), nil
+	return (*secp256k1.PublicKey)(&priv.PublicKey), nil
 }
 
 func randRawFeatureVector(r *rand.Rand) *RawFeatureVector {
@@ -146,11 +146,11 @@ func TestLightningWireProtocol(t *testing.T) {
 		},
 		MsgOpenChannel: func(v []reflect.Value, r *rand.Rand) {
 			req := OpenChannel{
-				FundingAmount:    btcutil.Amount(r.Int63()),
+				FundingAmount:    dcrutil.Amount(r.Int63()),
 				PushAmount:       MilliSatoshi(r.Int63()),
-				DustLimit:        btcutil.Amount(r.Int63()),
+				DustLimit:        dcrutil.Amount(r.Int63()),
 				MaxValueInFlight: MilliSatoshi(r.Int63()),
-				ChannelReserve:   btcutil.Amount(r.Int63()),
+				ChannelReserve:   dcrutil.Amount(r.Int63()),
 				HtlcMinimum:      MilliSatoshi(r.Int31()),
 				FeePerKiloWeight: uint32(r.Int63()),
 				CsvDelay:         uint16(r.Int31()),
@@ -204,9 +204,9 @@ func TestLightningWireProtocol(t *testing.T) {
 		},
 		MsgAcceptChannel: func(v []reflect.Value, r *rand.Rand) {
 			req := AcceptChannel{
-				DustLimit:        btcutil.Amount(r.Int63()),
+				DustLimit:        dcrutil.Amount(r.Int63()),
 				MaxValueInFlight: MilliSatoshi(r.Int63()),
-				ChannelReserve:   btcutil.Amount(r.Int63()),
+				ChannelReserve:   dcrutil.Amount(r.Int63()),
 				MinAcceptDepth:   uint32(r.Int31()),
 				HtlcMinimum:      MilliSatoshi(r.Int31()),
 				CsvDelay:         uint16(r.Int31()),
@@ -304,7 +304,7 @@ func TestLightningWireProtocol(t *testing.T) {
 		},
 		MsgClosingSigned: func(v []reflect.Value, r *rand.Rand) {
 			req := ClosingSigned{
-				FeeSatoshis: btcutil.Amount(r.Int63()),
+				FeeSatoshis: dcrutil.Amount(r.Int63()),
 				Signature:   testSig,
 			}
 
@@ -328,7 +328,7 @@ func TestLightningWireProtocol(t *testing.T) {
 			// an empty slice versus a nil slice.
 			numSigs := uint16(r.Int31n(1020))
 			if numSigs > 0 {
-				req.HtlcSigs = make([]*btcec.Signature, numSigs)
+				req.HtlcSigs = make([]*secp256k1.Signature, numSigs)
 			}
 			for i := 0; i < int(numSigs); i++ {
 				req.HtlcSigs[i] = testSig

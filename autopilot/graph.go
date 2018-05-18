@@ -8,14 +8,14 @@ import (
 	"time"
 
 	"github.com/boltdb/bolt"
-	"github.com/lightningnetwork/lnd/channeldb"
-	"github.com/lightningnetwork/lnd/lnwire"
-	"github.com/roasbeef/btcd/btcec"
-	"github.com/roasbeef/btcutil"
+	"github.com/decred/dcrd/dcrec/secp256k1"
+	"github.com/decred/dcrd/dcrutil"
+	"github.com/decred/dcrlnd/channeldb"
+	"github.com/decred/dcrlnd/lnwire"
 )
 
 var (
-	testSig = &btcec.Signature{
+	testSig = &secp256k1.Signature{
 		R: new(big.Int),
 		S: new(big.Int),
 	}
@@ -62,7 +62,7 @@ var _ Node = (*dbNode)(nil)
 // to target a node for channel opening by the main autopilot agent.
 //
 // NOTE: Part of the autopilot.Node interface.
-func (d dbNode) PubKey() *btcec.PublicKey {
+func (d dbNode) PubKey() *secp256k1.PublicKey {
 	return d.node.PubKey
 }
 
@@ -127,10 +127,10 @@ func (d *databaseChannelGraph) ForEachNode(cb func(Node) error) error {
 // addRandChannel creates a new channel two target nodes. This function is
 // meant to aide in the generation of random graphs for use within test cases
 // the exercise the autopilot package.
-func (d *databaseChannelGraph) addRandChannel(node1, node2 *btcec.PublicKey,
-	capacity btcutil.Amount) (*ChannelEdge, *ChannelEdge, error) {
+func (d *databaseChannelGraph) addRandChannel(node1, node2 *secp256k1.PublicKey,
+	capacity dcrutil.Amount) (*ChannelEdge, *ChannelEdge, error) {
 
-	fetchNode := func(pub *btcec.PublicKey) (*channeldb.LightningNode, error) {
+	fetchNode := func(pub *secp256k1.PublicKey) (*channeldb.LightningNode, error) {
 		if pub != nil {
 			dbNode, err := d.db.FetchLightningNode(pub)
 			switch {
@@ -191,7 +191,7 @@ func (d *databaseChannelGraph) addRandChannel(node1, node2 *btcec.PublicKey,
 		return nil, nil, err
 	}
 
-	var lnNode1, lnNode2 *btcec.PublicKey
+	var lnNode1, lnNode2 *secp256k1.PublicKey
 	node1Bytes := vertex1.PubKey.SerializeCompressed()
 	node2Bytes := vertex2.PubKey.SerializeCompressed()
 	if bytes.Compare(node1Bytes, node2Bytes) == -1 {
@@ -303,20 +303,20 @@ func randChanID() lnwire.ShortChannelID {
 }
 
 // randKey returns a random public key.
-func randKey() (*btcec.PublicKey, error) {
-	priv, err := btcec.NewPrivateKey(btcec.S256())
+func randKey() (*secp256k1.PublicKey, error) {
+	priv, err := secp256k1.GeneratePrivateKey()
 	if err != nil {
 		return nil, err
 	}
 
-	return priv.PubKey(), nil
+	return (*secp256k1.PublicKey)(&priv.PublicKey), nil
 }
 
 // addRandChannel creates a new channel two target nodes. This function is
 // meant to aide in the generation of random graphs for use within test cases
 // the exercise the autopilot package.
-func (m *memChannelGraph) addRandChannel(node1, node2 *btcec.PublicKey,
-	capacity btcutil.Amount) (*ChannelEdge, *ChannelEdge, error) {
+func (m *memChannelGraph) addRandChannel(node1, node2 *secp256k1.PublicKey,
+	capacity dcrutil.Amount) (*ChannelEdge, *ChannelEdge, error) {
 
 	var (
 		vertex1, vertex2 memNode
@@ -383,7 +383,7 @@ func (m *memChannelGraph) addRandChannel(node1, node2 *btcec.PublicKey,
 // memNode is a purely in-memory implementation of the autopilot.Node
 // interface.
 type memNode struct {
-	pub *btcec.PublicKey
+	pub *secp256k1.PublicKey
 
 	chans []ChannelEdge
 
@@ -398,7 +398,7 @@ var _ Node = (*memNode)(nil)
 // to target a node for channel opening by the main autopilot agent.
 //
 // NOTE: Part of the autopilot.Node interface.
-func (m memNode) PubKey() *btcec.PublicKey {
+func (m memNode) PubKey() *secp256k1.PublicKey {
 	return m.pub
 }
 

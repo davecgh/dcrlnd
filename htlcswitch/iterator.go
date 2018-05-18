@@ -4,8 +4,8 @@ import (
 	"encoding/binary"
 	"io"
 
+	"github.com/decred/dcrlnd/lnwire"
 	"github.com/lightningnetwork/lightning-onion"
-	"github.com/lightningnetwork/lnd/lnwire"
 )
 
 // NetworkHop indicates the blockchain network that is intended to be the next

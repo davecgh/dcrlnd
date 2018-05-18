@@ -8,10 +8,10 @@ import (
 
 	prand "math/rand"
 
-	"github.com/lightningnetwork/lnd/channeldb"
-	"github.com/lightningnetwork/lnd/lnwire"
-	"github.com/roasbeef/btcd/btcec"
-	"github.com/roasbeef/btcutil"
+	"github.com/decred/dcrd/dcrec/secp256k1"
+	"github.com/decred/dcrd/dcrutil"
+	"github.com/decred/dcrlnd/channeldb"
+	"github.com/decred/dcrlnd/lnwire"
 )
 
 func TestConstrainedPrefAttachmentNeedMoreChan(t *testing.T) {
@@ -21,7 +21,7 @@ func TestConstrainedPrefAttachmentNeedMoreChan(t *testing.T) {
 
 	const (
 		minChanSize = 0
-		maxChanSize = btcutil.Amount(btcutil.SatoshiPerBitcoin)
+		maxChanSize = dcrutil.Amount(dcrutil.AtomsPerCoin)
 
 		chanLimit = 3
 
@@ -34,10 +34,10 @@ func TestConstrainedPrefAttachmentNeedMoreChan(t *testing.T) {
 
 	testCases := []struct {
 		channels  []Channel
-		walletAmt btcutil.Amount
+		walletAmt dcrutil.Amount
 
 		needMore     bool
-		amtAvailable btcutil.Amount
+		amtAvailable dcrutil.Amount
 	}{
 		// Many available funds, but already have too many active open
 		// channels.
@@ -45,18 +45,18 @@ func TestConstrainedPrefAttachmentNeedMoreChan(t *testing.T) {
 			[]Channel{
 				{
 					ChanID:   randChanID(),
-					Capacity: btcutil.Amount(prand.Int31()),
+					Capacity: dcrutil.Amount(prand.Int31()),
 				},
 				{
 					ChanID:   randChanID(),
-					Capacity: btcutil.Amount(prand.Int31()),
+					Capacity: dcrutil.Amount(prand.Int31()),
 				},
 				{
 					ChanID:   randChanID(),
-					Capacity: btcutil.Amount(prand.Int31()),
+					Capacity: dcrutil.Amount(prand.Int31()),
 				},
 			},
-			btcutil.Amount(btcutil.SatoshiPerBitcoin * 10),
+			dcrutil.Amount(dcrutil.AtomsPerCoin * 10),
 			false,
 			0,
 		},
@@ -67,14 +67,14 @@ func TestConstrainedPrefAttachmentNeedMoreChan(t *testing.T) {
 			[]Channel{
 				{
 					ChanID:   randChanID(),
-					Capacity: btcutil.Amount(btcutil.SatoshiPerBitcoin),
+					Capacity: dcrutil.Amount(dcrutil.AtomsPerCoin),
 				},
 				{
 					ChanID:   randChanID(),
-					Capacity: btcutil.Amount(btcutil.SatoshiPerBitcoin),
+					Capacity: dcrutil.Amount(dcrutil.AtomsPerCoin),
 				},
 			},
-			btcutil.Amount(btcutil.SatoshiPerBitcoin * 2),
+			dcrutil.Amount(dcrutil.AtomsPerCoin * 2),
 			false,
 			0,
 		},
@@ -88,12 +88,12 @@ func TestConstrainedPrefAttachmentNeedMoreChan(t *testing.T) {
 			[]Channel{
 				{
 					ChanID:   randChanID(),
-					Capacity: btcutil.Amount(btcutil.SatoshiPerBitcoin),
+					Capacity: dcrutil.Amount(dcrutil.AtomsPerCoin),
 				},
 			},
-			btcutil.Amount(btcutil.SatoshiPerBitcoin * 9),
+			dcrutil.Amount(dcrutil.AtomsPerCoin * 9),
 			true,
-			btcutil.Amount(btcutil.SatoshiPerBitcoin * 4),
+			dcrutil.Amount(dcrutil.AtomsPerCoin * 4),
 		},
 
 		// Ratio of funds in channels and total funds is below the
@@ -106,16 +106,16 @@ func TestConstrainedPrefAttachmentNeedMoreChan(t *testing.T) {
 			[]Channel{
 				{
 					ChanID:   randChanID(),
-					Capacity: btcutil.Amount(btcutil.SatoshiPerBitcoin),
+					Capacity: dcrutil.Amount(dcrutil.AtomsPerCoin),
 				},
 				{
 					ChanID:   randChanID(),
-					Capacity: btcutil.Amount(btcutil.SatoshiPerBitcoin * 3),
+					Capacity: dcrutil.Amount(dcrutil.AtomsPerCoin * 3),
 				},
 			},
-			btcutil.Amount(btcutil.SatoshiPerBitcoin * 10),
+			dcrutil.Amount(dcrutil.AtomsPerCoin * 10),
 			true,
-			btcutil.Amount(btcutil.SatoshiPerBitcoin * 3),
+			dcrutil.Amount(dcrutil.AtomsPerCoin * 3),
 		},
 
 		// Ratio of funds in channels and total funds is above the
@@ -124,14 +124,14 @@ func TestConstrainedPrefAttachmentNeedMoreChan(t *testing.T) {
 			[]Channel{
 				{
 					ChanID:   randChanID(),
-					Capacity: btcutil.Amount(btcutil.SatoshiPerBitcoin),
+					Capacity: dcrutil.Amount(dcrutil.AtomsPerCoin),
 				},
 				{
 					ChanID:   randChanID(),
-					Capacity: btcutil.Amount(btcutil.SatoshiPerBitcoin),
+					Capacity: dcrutil.Amount(dcrutil.AtomsPerCoin),
 				},
 			},
-			btcutil.Amount(btcutil.SatoshiPerBitcoin),
+			dcrutil.Amount(dcrutil.AtomsPerCoin),
 			false,
 			0,
 		},
@@ -160,8 +160,8 @@ type genGraphFunc func() (testGraph, func(), error)
 type testGraph interface {
 	ChannelGraph
 
-	addRandChannel(*btcec.PublicKey, *btcec.PublicKey,
-		btcutil.Amount) (*ChannelEdge, *ChannelEdge, error)
+	addRandChannel(*secp256k1.PublicKey, *secp256k1.PublicKey,
+		dcrutil.Amount) (*ChannelEdge, *ChannelEdge, error)
 }
 
 func newDiskChanGraph() (testGraph, func(), error) {
@@ -217,7 +217,7 @@ var chanGraphs = []struct {
 func TestConstrainedPrefAttachmentSelectEmptyGraph(t *testing.T) {
 	const (
 		minChanSize = 0
-		maxChanSize = btcutil.Amount(btcutil.SatoshiPerBitcoin)
+		maxChanSize = dcrutil.Amount(dcrutil.AtomsPerCoin)
 		chanLimit   = 3
 		threshold   = 0.5
 	)
@@ -245,7 +245,7 @@ func TestConstrainedPrefAttachmentSelectEmptyGraph(t *testing.T) {
 			// With the necessary state initialized, we'll not
 			// attempt to select a set of candidates channel for
 			// creation given the current state of the graph.
-			const walletFunds = btcutil.SatoshiPerBitcoin
+			const walletFunds = dcrutil.AtomsPerCoin
 			directives, err := prefAttatch.Select(self, graph,
 				walletFunds, skipNodes)
 			if err != nil {
@@ -277,7 +277,7 @@ func TestConstrainedPrefAttachmentSelectTwoVertexes(t *testing.T) {
 
 	const (
 		minChanSize = 0
-		maxChanSize = btcutil.Amount(btcutil.SatoshiPerBitcoin)
+		maxChanSize = dcrutil.Amount(dcrutil.AtomsPerCoin)
 		chanLimit   = 3
 		threshold   = 0.5
 	)
@@ -305,7 +305,7 @@ func TestConstrainedPrefAttachmentSelectTwoVertexes(t *testing.T) {
 
 			// For this set, we'll load the memory graph with two
 			// nodes, and a random channel connecting them.
-			const chanCapacity = btcutil.SatoshiPerBitcoin
+			const chanCapacity = dcrutil.AtomsPerCoin
 			edge1, edge2, err := graph.addRandChannel(nil, nil, chanCapacity)
 			if err != nil {
 				t1.Fatalf("unable to generate channel: %v", err)
@@ -314,7 +314,7 @@ func TestConstrainedPrefAttachmentSelectTwoVertexes(t *testing.T) {
 			// With the necessary state initialized, we'll not
 			// attempt to select a set of candidates channel for
 			// creation given the current state of the graph.
-			const walletFunds = btcutil.SatoshiPerBitcoin * 10
+			const walletFunds = dcrutil.AtomsPerCoin * 10
 			directives, err := prefAttatch.Select(self, graph,
 				walletFunds, skipNodes)
 			if err != nil {
@@ -364,7 +364,7 @@ func TestConstrainedPrefAttachmentSelectInsufficientFunds(t *testing.T) {
 
 	const (
 		minChanSize = 0
-		maxChanSize = btcutil.Amount(btcutil.SatoshiPerBitcoin)
+		maxChanSize = dcrutil.Amount(dcrutil.AtomsPerCoin)
 		chanLimit   = 3
 		threshold   = 0.5
 	)
@@ -423,7 +423,7 @@ func TestConstrainedPrefAttachmentSelectGreedyAllocation(t *testing.T) {
 
 	const (
 		minChanSize = 0
-		maxChanSize = btcutil.Amount(btcutil.SatoshiPerBitcoin)
+		maxChanSize = dcrutil.Amount(dcrutil.AtomsPerCoin)
 		chanLimit   = 3
 		threshold   = 0.5
 	)
@@ -450,7 +450,7 @@ func TestConstrainedPrefAttachmentSelectGreedyAllocation(t *testing.T) {
 				minChanSize, maxChanSize, chanLimit, threshold,
 			)
 
-			const chanCapcity = btcutil.SatoshiPerBitcoin
+			const chanCapcity = dcrutil.AtomsPerCoin
 
 			// Next, we'll add 3 nodes to the graph, creating an
 			// "open triangle topology".
@@ -501,7 +501,7 @@ func TestConstrainedPrefAttachmentSelectGreedyAllocation(t *testing.T) {
 			// 50/50 allocation, and have 3 BTC in channels. As a
 			// result, the heuristic should try to greedily
 			// allocate funds to channels.
-			const availableBalance = btcutil.SatoshiPerBitcoin * 2.5
+			const availableBalance = dcrutil.AtomsPerCoin * 2.5
 			directives, err := prefAttatch.Select(self, graph,
 				availableBalance, skipNodes)
 			if err != nil {
@@ -530,7 +530,7 @@ func TestConstrainedPrefAttachmentSelectGreedyAllocation(t *testing.T) {
 
 			// The third channel should have been allocated the
 			// remainder, or 0.5 BTC.
-			if directives[2].ChanAmt != (btcutil.SatoshiPerBitcoin * 0.5) {
+			if directives[2].ChanAmt != (dcrutil.AtomsPerCoin * 0.5) {
 				t1.Fatalf("expected recommendation of %v, "+
 					"instead got %v", maxChanSize,
 					directives[2].ChanAmt)
@@ -552,7 +552,7 @@ func TestConstrainedPrefAttachmentSelectSkipNodes(t *testing.T) {
 
 	const (
 		minChanSize = 0
-		maxChanSize = btcutil.Amount(btcutil.SatoshiPerBitcoin)
+		maxChanSize = dcrutil.Amount(dcrutil.AtomsPerCoin)
 		chanLimit   = 3
 		threshold   = 0.5
 	)
@@ -582,7 +582,7 @@ func TestConstrainedPrefAttachmentSelectSkipNodes(t *testing.T) {
 
 			// Next, we'll create a simple topology of two nodes,
 			// with a single channel connecting them.
-			const chanCapcity = btcutil.SatoshiPerBitcoin
+			const chanCapcity = dcrutil.AtomsPerCoin
 			_, _, err = graph.addRandChannel(nil, nil,
 				chanCapcity)
 			if err != nil {
@@ -592,7 +592,7 @@ func TestConstrainedPrefAttachmentSelectSkipNodes(t *testing.T) {
 			// With our graph created, we'll now execute the Select
 			// function to recommend potential attachment
 			// candidates.
-			const availableBalance = btcutil.SatoshiPerBitcoin * 2.5
+			const availableBalance = dcrutil.AtomsPerCoin * 2.5
 			directives, err := prefAttatch.Select(self, graph,
 				availableBalance, skipNodes)
 			if err != nil {

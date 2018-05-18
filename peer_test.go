@@ -5,16 +5,16 @@ import (
 	"time"
 
 	"github.com/btcsuite/btclog"
-	"github.com/lightningnetwork/lnd/chainntnfs"
-	"github.com/lightningnetwork/lnd/channeldb"
-	"github.com/lightningnetwork/lnd/htlcswitch"
-	"github.com/lightningnetwork/lnd/lnrpc"
-	"github.com/lightningnetwork/lnd/lnwallet"
-	"github.com/lightningnetwork/lnd/lnwire"
-	"github.com/roasbeef/btcd/btcec"
-	"github.com/roasbeef/btcd/txscript"
-	"github.com/roasbeef/btcd/wire"
-	"github.com/roasbeef/btcutil"
+	"github.com/decred/dcrd/dcrec/secp256k1"
+	"github.com/decred/dcrd/dcrutil"
+	"github.com/decred/dcrd/txscript"
+	"github.com/decred/dcrd/wire"
+	"github.com/decred/dcrlnd/chainntnfs"
+	"github.com/decred/dcrlnd/channeldb"
+	"github.com/decred/dcrlnd/htlcswitch"
+	"github.com/decred/dcrlnd/lnrpc"
+	"github.com/decred/dcrlnd/lnwallet"
+	"github.com/decred/dcrlnd/lnwire"
 )
 
 func init() {
@@ -92,7 +92,7 @@ func TestPeerChannelClosureAcceptFeeResponder(t *testing.T) {
 	}
 
 	initSig := append(initiatorSig, byte(txscript.SigHashAll))
-	parsedSig, err := btcec.ParseSignature(initSig, btcec.S256())
+	parsedSig, err := secp256k1.ParseSignature(initSig, secp256k1.S256())
 	if err != nil {
 		t.Fatalf("error parsing signature: %v", err)
 	}
@@ -173,13 +173,13 @@ func TestPeerChannelClosureAcceptFeeInitiator(t *testing.T) {
 	if err != nil {
 		t.Fatalf("unable to query fee estimator: %v", err)
 	}
-	fee := btcutil.Amount(responderChan.CalcFee(uint64(feeRate * 1000)))
+	fee := dcrutil.Amount(responderChan.CalcFee(uint64(feeRate * 1000)))
 	closeSig, err := responderChan.CreateCloseProposal(fee,
 		dummyDeliveryScript, initiatorDeliveryScript)
 	if err != nil {
 		t.Fatalf("unable to create close proposal: %v", err)
 	}
-	parsedSig, err := btcec.ParseSignature(closeSig, btcec.S256())
+	parsedSig, err := secp256k1.ParseSignature(closeSig, secp256k1.S256())
 	if err != nil {
 		t.Fatalf("unable to parse signature: %v", err)
 	}
@@ -282,7 +282,7 @@ func TestPeerChannelClosureFeeNegotiationsResponder(t *testing.T) {
 
 	// We don't agree with the fee, and will send back one that's 2.5x.
 	preferredRespFee := responderClosingSigned.FeeSatoshis
-	increasedFee := btcutil.Amount(float64(preferredRespFee) * 2.5)
+	increasedFee := dcrutil.Amount(float64(preferredRespFee) * 2.5)
 	initiatorSig, err := initiatorChan.CreateCloseProposal(
 		increasedFee, dummyDeliveryScript, respDeliveryScript,
 	)
@@ -290,7 +290,7 @@ func TestPeerChannelClosureFeeNegotiationsResponder(t *testing.T) {
 		t.Fatalf("error creating close proposal: %v", err)
 	}
 
-	parsedSig, err := btcec.ParseSignature(initiatorSig, btcec.S256())
+	parsedSig, err := secp256k1.ParseSignature(initiatorSig, secp256k1.S256())
 	if err != nil {
 		t.Fatalf("error parsing signature: %v", err)
 	}
@@ -326,7 +326,7 @@ func TestPeerChannelClosureFeeNegotiationsResponder(t *testing.T) {
 	lastFeeResponder := peerFee
 
 	// We try negotiating a 2.1x fee, which should also be rejected.
-	increasedFee = btcutil.Amount(float64(preferredRespFee) * 2.1)
+	increasedFee = dcrutil.Amount(float64(preferredRespFee) * 2.1)
 	initiatorSig, err = initiatorChan.CreateCloseProposal(
 		increasedFee, dummyDeliveryScript, respDeliveryScript,
 	)
@@ -334,7 +334,7 @@ func TestPeerChannelClosureFeeNegotiationsResponder(t *testing.T) {
 		t.Fatalf("error creating close proposal: %v", err)
 	}
 
-	parsedSig, err = btcec.ParseSignature(initiatorSig, btcec.S256())
+	parsedSig, err = secp256k1.ParseSignature(initiatorSig, secp256k1.S256())
 	if err != nil {
 		t.Fatalf("error parsing signature: %v", err)
 	}
@@ -380,7 +380,7 @@ func TestPeerChannelClosureFeeNegotiationsResponder(t *testing.T) {
 	}
 
 	initSig := append(initiatorSig, byte(txscript.SigHashAll))
-	parsedSig, err = btcec.ParseSignature(initSig, btcec.S256())
+	parsedSig, err = secp256k1.ParseSignature(initSig, secp256k1.S256())
 	if err != nil {
 		t.Fatalf("error parsing signature: %v", err)
 	}
@@ -466,14 +466,14 @@ func TestPeerChannelClosureFeeNegotiationsInitiator(t *testing.T) {
 	initiatorIdealFee := responderChan.CalcFee(
 		uint64(initiatorIdealFeeRate * 1000),
 	)
-	increasedFee := btcutil.Amount(float64(initiatorIdealFee) * 2.5)
+	increasedFee := dcrutil.Amount(float64(initiatorIdealFee) * 2.5)
 	closeSig, err := responderChan.CreateCloseProposal(
 		increasedFee, dummyDeliveryScript, initiatorDeliveryScript,
 	)
 	if err != nil {
 		t.Fatalf("unable to create close proposal: %v", err)
 	}
-	parsedSig, err := btcec.ParseSignature(closeSig, btcec.S256())
+	parsedSig, err := secp256k1.ParseSignature(closeSig, secp256k1.S256())
 	if err != nil {
 		t.Fatalf("unable to parse signature: %v", err)
 	}
@@ -531,7 +531,7 @@ func TestPeerChannelClosureFeeNegotiationsInitiator(t *testing.T) {
 	lastFeeSent = closingSignedMsg.FeeSatoshis
 
 	// We try negotiating a 2.1x fee, which should also be rejected.
-	increasedFee = btcutil.Amount(float64(initiatorIdealFee) * 2.1)
+	increasedFee = dcrutil.Amount(float64(initiatorIdealFee) * 2.1)
 	responderSig, err := responderChan.CreateCloseProposal(
 		increasedFee, dummyDeliveryScript, initiatorDeliveryScript,
 	)
@@ -539,7 +539,7 @@ func TestPeerChannelClosureFeeNegotiationsInitiator(t *testing.T) {
 		t.Fatalf("error creating close proposal: %v", err)
 	}
 
-	parsedSig, err = btcec.ParseSignature(responderSig, btcec.S256())
+	parsedSig, err = secp256k1.ParseSignature(responderSig, secp256k1.S256())
 	if err != nil {
 		t.Fatalf("error parsing signature: %v", err)
 	}
@@ -586,7 +586,7 @@ func TestPeerChannelClosureFeeNegotiationsInitiator(t *testing.T) {
 	}
 
 	respSig := append(responderSig, byte(txscript.SigHashAll))
-	parsedSig, err = btcec.ParseSignature(respSig, btcec.S256())
+	parsedSig, err = secp256k1.ParseSignature(respSig, secp256k1.S256())
 	if err != nil {
 		t.Fatalf("error parsing signature: %v", err)
 	}

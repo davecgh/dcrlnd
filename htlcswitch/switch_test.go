@@ -6,19 +6,18 @@ import (
 	"testing"
 	"time"
 
-	"github.com/btcsuite/fastsha256"
+	"github.com/decred/dcrd/chaincfg/chainhash"
+	"github.com/decred/dcrd/wire"
+	"github.com/decred/dcrlnd/lnwire"
 	"github.com/go-errors/errors"
-	"github.com/lightningnetwork/lnd/lnwire"
-	"github.com/roasbeef/btcd/chaincfg/chainhash"
-	"github.com/roasbeef/btcd/wire"
 )
 
 var (
 	hash1, _ = chainhash.NewHash(bytes.Repeat([]byte("a"), 32))
 	hash2, _ = chainhash.NewHash(bytes.Repeat([]byte("b"), 32))
 
-	chanPoint1 = wire.NewOutPoint(hash1, 0)
-	chanPoint2 = wire.NewOutPoint(hash2, 0)
+	chanPoint1 = wire.NewOutPoint(hash1, 0, wire.TxTreeRegular)
+	chanPoint2 = wire.NewOutPoint(hash2, 0, wire.TxTreeRegular)
 
 	chanID1 = lnwire.NewChanIDFromOutPoint(chanPoint1)
 	chanID2 = lnwire.NewChanIDFromOutPoint(chanPoint2)
@@ -54,7 +53,7 @@ func TestSwitchForward(t *testing.T) {
 	// Create request which should be forwarded from Alice channel link to
 	// bob channel link.
 	preimage := [sha256.Size]byte{1}
-	rhash := fastsha256.Sum256(preimage[:])
+	rhash := sha256.Sum256(preimage[:])
 	packet := &htlcPacket{
 		incomingChanID: aliceChannelLink.ShortChanID(),
 		incomingHTLCID: 0,
@@ -145,7 +144,7 @@ func TestSkipIneligibleLinksMultiHopForward(t *testing.T) {
 	// Create a new packet that's destined for Bob as an incoming HTLC from
 	// Alice.
 	preimage := [sha256.Size]byte{1}
-	rhash := fastsha256.Sum256(preimage[:])
+	rhash := sha256.Sum256(preimage[:])
 	packet = &htlcPacket{
 		incomingChanID: aliceChannelLink.ShortChanID(),
 		incomingHTLCID: 0,
@@ -188,7 +187,7 @@ func TestSkipIneligibleLinksLocalForward(t *testing.T) {
 	}
 
 	preimage := [sha256.Size]byte{1}
-	rhash := fastsha256.Sum256(preimage[:])
+	rhash := sha256.Sum256(preimage[:])
 	addMsg := &lnwire.UpdateAddHTLC{
 		PaymentHash: rhash,
 		Amount:      1,
@@ -235,7 +234,7 @@ func TestSwitchCancel(t *testing.T) {
 	// Create request which should be forwarder from alice channel link
 	// to bob channel link.
 	preimage := [sha256.Size]byte{1}
-	rhash := fastsha256.Sum256(preimage[:])
+	rhash := sha256.Sum256(preimage[:])
 	request := &htlcPacket{
 		incomingChanID: aliceChannelLink.ShortChanID(),
 		incomingHTLCID: 0,
@@ -317,7 +316,7 @@ func TestSwitchAddSamePayment(t *testing.T) {
 	// Create request which should be forwarder from alice channel link
 	// to bob channel link.
 	preimage := [sha256.Size]byte{1}
-	rhash := fastsha256.Sum256(preimage[:])
+	rhash := sha256.Sum256(preimage[:])
 	request := &htlcPacket{
 		incomingChanID: aliceChannelLink.ShortChanID(),
 		incomingHTLCID: 0,
@@ -435,7 +434,7 @@ func TestSwitchSendPayment(t *testing.T) {
 	// Create request which should be forwarder from alice channel link
 	// to bob channel link.
 	preimage := [sha256.Size]byte{1}
-	rhash := fastsha256.Sum256(preimage[:])
+	rhash := sha256.Sum256(preimage[:])
 	update := &lnwire.UpdateAddHTLC{
 		PaymentHash: rhash,
 		Amount:      1,

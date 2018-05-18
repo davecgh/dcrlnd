@@ -3,7 +3,7 @@ package lnwire
 import (
 	"io"
 
-	"github.com/roasbeef/btcd/btcec"
+	"github.com/decred/dcrd/dcrec/secp256k1"
 )
 
 // RevokeAndAck is sent by either side once a CommitSig message has been
@@ -29,7 +29,7 @@ type RevokeAndAck struct {
 	// This, in conjunction without revocation base point will be used to
 	// create the proper revocation key used within the commitment
 	// transaction.
-	NextRevocationKey *btcec.PublicKey
+	NextRevocationKey *secp256k1.PublicKey
 }
 
 // NewRevokeAndAck creates a new RevokeAndAck message.

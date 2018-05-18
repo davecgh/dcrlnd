@@ -12,18 +12,18 @@ import (
 	"time"
 
 	"github.com/btcsuite/btclog"
-	"github.com/lightningnetwork/lnd/chainntnfs"
-	"github.com/lightningnetwork/lnd/channeldb"
-	"github.com/lightningnetwork/lnd/lnrpc"
-	"github.com/lightningnetwork/lnd/lnwallet"
-	"github.com/lightningnetwork/lnd/lnwire"
-	"github.com/roasbeef/btcd/chaincfg"
-	"github.com/roasbeef/btcd/chaincfg/chainhash"
-	_ "github.com/roasbeef/btcwallet/walletdb/bdb"
+	"github.com/decred/dcrd/chaincfg"
+	"github.com/decred/dcrd/chaincfg/chainhash"
+	"github.com/decred/dcrlnd/chainntnfs"
+	"github.com/decred/dcrlnd/channeldb"
+	"github.com/decred/dcrlnd/lnrpc"
+	"github.com/decred/dcrlnd/lnwallet"
+	"github.com/decred/dcrlnd/lnwire"
+	_ "github.com/decred/dcrwallet/walletdb/bdb"
 
-	"github.com/roasbeef/btcd/btcec"
-	"github.com/roasbeef/btcd/wire"
-	"github.com/roasbeef/btcutil"
+	"github.com/decred/dcrd/dcrec/secp256k1"
+	"github.com/decred/dcrd/dcrutil"
+	"github.com/decred/dcrd/wire"
 )
 
 const (
@@ -52,8 +52,7 @@ var (
 		0x6a, 0x49, 0x18, 0x83, 0x31, 0x98, 0x47, 0x53,
 	}
 
-	alicePrivKey, alicePubKey = btcec.PrivKeyFromBytes(btcec.S256(),
-		alicePrivKeyBytes[:])
+	alicePrivKey, alicePubKey = secp256k1.PrivKeyFromBytes(alicePrivKeyBytes[:])
 
 	aliceTCPAddr, _ = net.ResolveTCPAddr("tcp", "10.0.0.2:9001")
 
@@ -69,8 +68,7 @@ var (
 		0x1e, 0xb, 0x4c, 0xfd, 0x9e, 0xc5, 0x8c, 0xe9,
 	}
 
-	bobPrivKey, bobPubKey = btcec.PrivKeyFromBytes(btcec.S256(),
-		bobPrivKeyBytes[:])
+	bobPrivKey, bobPubKey = secp256k1.PrivKeyFromBytes(bobPrivKeyBytes[:])
 
 	bobTCPAddr, _ = net.ResolveTCPAddr("tcp", "10.0.0.2:9000")
 
@@ -120,7 +118,7 @@ func (m *mockNotifier) RegisterSpendNtfn(outpoint *wire.OutPoint,
 }
 
 type testNode struct {
-	privKey         *btcec.PrivateKey
+	privKey         *secp256k1.PrivateKey
 	msgChan         chan lnwire.Message
 	announceChan    chan lnwire.Message
 	arbiterChan     chan *lnwallet.LightningChannel
@@ -163,7 +161,7 @@ func createTestWallet(cdb *channeldb.DB, netParams *chaincfg.Params,
 	return wallet, nil
 }
 
-func createTestFundingManager(t *testing.T, privKey *btcec.PrivateKey,
+func createTestFundingManager(t *testing.T, privKey *secp256k1.PrivateKey,
 	tempTestDir string) (*testNode, error) {
 
 	netParams := activeNetParams.Params
@@ -214,7 +212,7 @@ func createTestFundingManager(t *testing.T, privKey *btcec.PrivateKey,
 		Wallet:       lnw,
 		Notifier:     chainNotifier,
 		FeeEstimator: estimator,
-		SignMessage: func(pubKey *btcec.PublicKey, msg []byte) (*btcec.Signature, error) {
+		SignMessage: func(pubKey *secp256k1.PublicKey, msg []byte) (*secp256k1.Signature, error) {
 			return nil, nil
 		},
 		SendAnnouncement: func(msg lnwire.Message) error {
@@ -229,7 +227,7 @@ func createTestFundingManager(t *testing.T, privKey *btcec.PrivateKey,
 			return lnwire.NodeAnnouncement{}, nil
 		},
 		ArbiterChan: arbiterChan,
-		SendToPeer: func(target *btcec.PublicKey, msgs ...lnwire.Message) error {
+		SendToPeer: func(target *secp256k1.PublicKey, msgs ...lnwire.Message) error {
 			select {
 			case sentMessages <- msgs[0]:
 			case <-shutdownChan:
@@ -237,10 +235,10 @@ func createTestFundingManager(t *testing.T, privKey *btcec.PrivateKey,
 			}
 			return nil
 		},
-		NotifyWhenOnline: func(peer *btcec.PublicKey, connectedChan chan<- struct{}) {
+		NotifyWhenOnline: func(peer *secp256k1.PublicKey, connectedChan chan<- struct{}) {
 			t.Fatalf("did not expect fundingManager to call NotifyWhenOnline")
 		},
-		FindPeer: func(peerKey *btcec.PublicKey) (*peer, error) {
+		FindPeer: func(peerKey *secp256k1.PublicKey) (*peer, error) {
 			return p, nil
 		},
 		TempChanIDSeed: chanIDSeed,
@@ -262,11 +260,11 @@ func createTestFundingManager(t *testing.T, privKey *btcec.PrivateKey,
 
 			return nil, fmt.Errorf("unable to find channel")
 		},
-		NumRequiredConfs: func(chanAmt btcutil.Amount,
+		NumRequiredConfs: func(chanAmt dcrutil.Amount,
 			pushAmt lnwire.MilliSatoshi) uint16 {
 			return 3
 		},
-		RequiredRemoteDelay: func(amt btcutil.Amount) uint16 {
+		RequiredRemoteDelay: func(amt dcrutil.Amount) uint16 {
 			return 4
 		},
 	})
@@ -310,8 +308,8 @@ func recreateAliceFundingManager(t *testing.T, alice *testNode) {
 		Wallet:       oldCfg.Wallet,
 		Notifier:     oldCfg.Notifier,
 		FeeEstimator: oldCfg.FeeEstimator,
-		SignMessage: func(pubKey *btcec.PublicKey,
-			msg []byte) (*btcec.Signature, error) {
+		SignMessage: func(pubKey *secp256k1.PublicKey,
+			msg []byte) (*secp256k1.Signature, error) {
 			return nil, nil
 		},
 		SendAnnouncement: func(msg lnwire.Message) error {
@@ -326,7 +324,7 @@ func recreateAliceFundingManager(t *testing.T, alice *testNode) {
 			return lnwire.NodeAnnouncement{}, nil
 		},
 		ArbiterChan: oldCfg.ArbiterChan,
-		SendToPeer: func(target *btcec.PublicKey,
+		SendToPeer: func(target *secp256k1.PublicKey,
 			msgs ...lnwire.Message) error {
 			select {
 			case aliceMsgChan <- msgs[0]:
@@ -335,7 +333,7 @@ func recreateAliceFundingManager(t *testing.T, alice *testNode) {
 			}
 			return nil
 		},
-		NotifyWhenOnline: func(peer *btcec.PublicKey, connectedChan chan<- struct{}) {
+		NotifyWhenOnline: func(peer *secp256k1.PublicKey, connectedChan chan<- struct{}) {
 			t.Fatalf("did not expect fundingManager to call NotifyWhenOnline")
 		},
 		FindPeer:       oldCfg.FindPeer,
@@ -403,7 +401,7 @@ func tearDownFundingManagers(t *testing.T, a, b *testNode) {
 // openChannel takes the funding process to the point where the funding
 // transaction is confirmed on-chain. Returns the funding out point.
 func openChannel(t *testing.T, alice, bob *testNode, localFundingAmt,
-	pushAmt btcutil.Amount, numConfs uint32,
+	pushAmt dcrutil.Amount, numConfs uint32,
 	updateChan chan *lnrpc.OpenStatusUpdate, announceChan bool) *wire.OutPoint {
 	// Create a funding request and start the workflow.
 	errChan := make(chan error, 1)
@@ -879,11 +877,11 @@ func TestFundingManagerRestartBehavior(t *testing.T) {
 	// SendToPeer method return an error, as if the message was not
 	// successfully sent. We then recreate the fundingManager and make sure
 	// it continues the process as expected.
-	alice.fundingMgr.cfg.SendToPeer = func(target *btcec.PublicKey,
+	alice.fundingMgr.cfg.SendToPeer = func(target *secp256k1.PublicKey,
 		msgs ...lnwire.Message) error {
 		return fmt.Errorf("intentional error in SendToPeer")
 	}
-	alice.fundingMgr.cfg.NotifyWhenOnline = func(peer *btcec.PublicKey, con chan<- struct{}) {
+	alice.fundingMgr.cfg.NotifyWhenOnline = func(peer *secp256k1.PublicKey, con chan<- struct{}) {
 		// Intetionally empty.
 	}
 
@@ -994,13 +992,13 @@ func TestFundingManagerOfflinePeer(t *testing.T) {
 	// fundingLocked message to the other peer. If the funding node fails
 	// to send the fundingLocked message to the peer, it should wait for
 	// the server to notify it that the peer is back online, and try again.
-	alice.fundingMgr.cfg.SendToPeer = func(target *btcec.PublicKey,
+	alice.fundingMgr.cfg.SendToPeer = func(target *secp256k1.PublicKey,
 		msgs ...lnwire.Message) error {
 		return fmt.Errorf("intentional error in SendToPeer")
 	}
-	peerChan := make(chan *btcec.PublicKey, 1)
+	peerChan := make(chan *secp256k1.PublicKey, 1)
 	conChan := make(chan chan<- struct{}, 1)
-	alice.fundingMgr.cfg.NotifyWhenOnline = func(peer *btcec.PublicKey, connected chan<- struct{}) {
+	alice.fundingMgr.cfg.NotifyWhenOnline = func(peer *secp256k1.PublicKey, connected chan<- struct{}) {
 		peerChan <- peer
 		conChan <- connected
 	}
@@ -1035,7 +1033,7 @@ func TestFundingManagerOfflinePeer(t *testing.T) {
 	assertDatabaseState(t, bob, fundingOutPoint, fundingLockedSent)
 
 	// Alice should be waiting for the server to notify when Bob comes back online.
-	var peer *btcec.PublicKey
+	var peer *secp256k1.PublicKey
 	var con chan<- struct{}
 	select {
 	case peer = <-peerChan:
@@ -1057,7 +1055,7 @@ func TestFundingManagerOfflinePeer(t *testing.T) {
 	}
 
 	// Fix Alice's SendToPeer, and notify that Bob is back online.
-	alice.fundingMgr.cfg.SendToPeer = func(target *btcec.PublicKey,
+	alice.fundingMgr.cfg.SendToPeer = func(target *secp256k1.PublicKey,
 		msgs ...lnwire.Message) error {
 		select {
 		case alice.msgChan <- msgs[0]:

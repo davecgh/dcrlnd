@@ -5,29 +5,24 @@ import (
 	"crypto/rand"
 	"crypto/sha256"
 	"fmt"
+	"io"
+	"io/ioutil"
+	"math/big"
+	"net"
+	"os"
 	"testing"
 	"time"
 
-	"io/ioutil"
-	"os"
-
-	"io"
-
-	"math/big"
-
-	"net"
-
-	"github.com/btcsuite/fastsha256"
+	"github.com/decred/dcrd/chaincfg/chainhash"
+	"github.com/decred/dcrd/dcrec/secp256k1"
+	"github.com/decred/dcrd/dcrutil"
+	"github.com/decred/dcrd/wire"
+	"github.com/decred/dcrlnd/chainntnfs"
+	"github.com/decred/dcrlnd/channeldb"
+	"github.com/decred/dcrlnd/lnwallet"
+	"github.com/decred/dcrlnd/lnwire"
+	"github.com/decred/dcrlnd/shachain"
 	"github.com/go-errors/errors"
-	"github.com/lightningnetwork/lnd/chainntnfs"
-	"github.com/lightningnetwork/lnd/channeldb"
-	"github.com/lightningnetwork/lnd/lnwallet"
-	"github.com/lightningnetwork/lnd/lnwire"
-	"github.com/lightningnetwork/lnd/shachain"
-	"github.com/roasbeef/btcd/btcec"
-	"github.com/roasbeef/btcd/chaincfg/chainhash"
-	"github.com/roasbeef/btcd/wire"
-	"github.com/roasbeef/btcutil"
 )
 
 var (
@@ -42,8 +37,8 @@ var (
 		0x1e, 0xb, 0x4c, 0xfd, 0x9e, 0xc5, 0x8c, 0xe9,
 	}
 
-	_, testPubKey = btcec.PrivKeyFromBytes(btcec.S256(), testPrivKey)
-	testSig       = &btcec.Signature{
+	_, testPubKey = secp256k1.PrivKeyFromBytes(testPrivKey)
+	testSig       = &secp256k1.Signature{
 		R: new(big.Int),
 		S: new(big.Int),
 	}
@@ -86,17 +81,17 @@ func generateRandomBytes(n int) ([]byte, error) {
 //
 // TODO(roasbeef): need to factor out, similar func re-used in many parts of codebase
 func createTestChannel(alicePrivKey, bobPrivKey []byte,
-	aliceAmount, bobAmount btcutil.Amount,
+	aliceAmount, bobAmount dcrutil.Amount,
 	chanID lnwire.ShortChannelID) (*lnwallet.LightningChannel, *lnwallet.LightningChannel, func(),
 	func() (*lnwallet.LightningChannel, *lnwallet.LightningChannel,
 		error), error) {
 
-	aliceKeyPriv, aliceKeyPub := btcec.PrivKeyFromBytes(btcec.S256(), alicePrivKey)
-	bobKeyPriv, bobKeyPub := btcec.PrivKeyFromBytes(btcec.S256(), bobPrivKey)
+	aliceKeyPriv, aliceKeyPub := secp256k1.PrivKeyFromBytes(alicePrivKey)
+	bobKeyPriv, bobKeyPub := secp256k1.PrivKeyFromBytes(bobPrivKey)
 
 	channelCapacity := aliceAmount + bobAmount
-	aliceDustLimit := btcutil.Amount(200)
-	bobDustLimit := btcutil.Amount(800)
+	aliceDustLimit := dcrutil.Amount(200)
+	bobDustLimit := dcrutil.Amount(800)
 	csvTimeoutAlice := uint32(5)
 	csvTimeoutBob := uint32(4)
 
@@ -111,7 +106,7 @@ func createTestChannel(alicePrivKey, bobPrivKey []byte,
 		Hash:  chainhash.Hash(hash),
 		Index: 0,
 	}
-	fundingTxIn := wire.NewTxIn(prevOut, nil, nil)
+	fundingTxIn := wire.NewTxIn(prevOut, nil)
 
 	aliceCfg := channeldb.ChannelConfig{
 		ChannelConstraints: channeldb.ChannelConstraints{
@@ -137,7 +132,7 @@ func createTestChannel(alicePrivKey, bobPrivKey []byte,
 	}
 
 	bobRoot := lnwallet.DeriveRevocationRoot(bobKeyPriv, hash, aliceKeyPub)
-	bobPreimageProducer := shachain.NewRevocationProducer(bobRoot)
+	bobPreimageProducer := shachain.NewRevocationProducer(shachain.ShaHash(bobRoot))
 	bobFirstRevoke, err := bobPreimageProducer.AtIndex(0)
 	if err != nil {
 		return nil, nil, nil, nil, err
@@ -145,7 +140,7 @@ func createTestChannel(alicePrivKey, bobPrivKey []byte,
 	bobCommitPoint := lnwallet.ComputeCommitmentPoint(bobFirstRevoke[:])
 
 	aliceRoot := lnwallet.DeriveRevocationRoot(aliceKeyPriv, hash, bobKeyPub)
-	alicePreimageProducer := shachain.NewRevocationProducer(aliceRoot)
+	alicePreimageProducer := shachain.NewRevocationProducer(shachain.ShaHash(aliceRoot))
 	aliceFirstRevoke, err := alicePreimageProducer.AtIndex(0)
 	if err != nil {
 		return nil, nil, nil, nil, err
@@ -178,8 +173,8 @@ func createTestChannel(alicePrivKey, bobPrivKey []byte,
 	if err != nil {
 		return nil, nil, nil, nil, err
 	}
-	feePerKw := btcutil.Amount(feePerWeight * 1000)
-	commitFee := (feePerKw * btcutil.Amount(724)) / 1000
+	feePerKw := dcrutil.Amount(feePerWeight * 1000)
+	commitFee := (feePerKw * dcrutil.Amount(724)) / 1000
 
 	const broadcastHeight = 1
 	bobAddr := &net.TCPAddr{
@@ -386,7 +381,7 @@ func generatePayment(invoiceAmt, htlcAmt lnwire.MilliSatoshi, timelock uint32,
 	}
 	copy(preimage[:], r)
 
-	rhash := fastsha256.Sum256(preimage[:])
+	rhash := sha256.Sum256(preimage[:])
 
 	invoice := &channeldb.Invoice{
 		CreationDate: time.Now(),
@@ -560,7 +555,7 @@ func (n *threeHopNetwork) makePayment(sendingPeer, receivingPeer Peer,
 			err:   paymentErr,
 		}
 	}
-	rhash = fastsha256.Sum256(invoice.Terms.PaymentPreimage[:])
+	rhash = sha256.Sum256(invoice.Terms.PaymentPreimage[:])
 
 	// Check who is last in the route and add invoice to server registry.
 	if err := receiver.registry.AddInvoice(*invoice); err != nil {
@@ -631,7 +626,7 @@ type clusterChannels struct {
 
 // createClusterChannels creates lightning channels which are needed for
 // network cluster to be initialized.
-func createClusterChannels(aliceToBob, bobToCarol btcutil.Amount) (
+func createClusterChannels(aliceToBob, bobToCarol dcrutil.Amount) (
 	*clusterChannels, func(), func() (*clusterChannels, error), error) {
 
 	firstChanID := lnwire.NewShortChanIDFromInt(4)
@@ -712,8 +707,8 @@ func newThreeHopNetwork(t testing.TB, aliceChannel, firstBobChannel,
 	decoder := &mockIteratorDecoder{}
 
 	feeEstimator := &mockFeeEstimator{
-		byteFeeIn:   make(chan btcutil.Amount),
-		weightFeeIn: make(chan btcutil.Amount),
+		byteFeeIn:   make(chan dcrutil.Amount),
+		weightFeeIn: make(chan dcrutil.Amount),
 		quit:        make(chan struct{}),
 	}
 

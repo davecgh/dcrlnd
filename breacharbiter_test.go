@@ -15,18 +15,18 @@ import (
 	"time"
 
 	"github.com/btcsuite/btclog"
+	"github.com/decred/dcrd/chaincfg/chainhash"
+	"github.com/decred/dcrd/dcrec/secp256k1"
+	"github.com/decred/dcrd/dcrutil"
+	"github.com/decred/dcrd/txscript"
+	"github.com/decred/dcrd/wire"
+	"github.com/decred/dcrlnd/chainntnfs"
+	"github.com/decred/dcrlnd/channeldb"
+	"github.com/decred/dcrlnd/htlcswitch"
+	"github.com/decred/dcrlnd/lnwallet"
+	"github.com/decred/dcrlnd/lnwire"
+	"github.com/decred/dcrlnd/shachain"
 	"github.com/go-errors/errors"
-	"github.com/lightningnetwork/lnd/chainntnfs"
-	"github.com/lightningnetwork/lnd/channeldb"
-	"github.com/lightningnetwork/lnd/htlcswitch"
-	"github.com/lightningnetwork/lnd/lnwallet"
-	"github.com/lightningnetwork/lnd/lnwire"
-	"github.com/lightningnetwork/lnd/shachain"
-	"github.com/roasbeef/btcd/btcec"
-	"github.com/roasbeef/btcd/chaincfg/chainhash"
-	"github.com/roasbeef/btcd/txscript"
-	"github.com/roasbeef/btcd/wire"
-	"github.com/roasbeef/btcutil"
 )
 
 var (
@@ -88,7 +88,7 @@ var (
 
 	breachedOutputs = []breachedOutput{
 		{
-			amt:         btcutil.Amount(1e7),
+			amt:         dcrutil.Amount(1e7),
 			outpoint:    breachOutPoints[0],
 			witnessType: lnwallet.CommitmentNoDelay,
 			signDesc: lnwallet.SignDescriptor{
@@ -131,7 +131,7 @@ var (
 			},
 		},
 		{
-			amt:         btcutil.Amount(2e9),
+			amt:         dcrutil.Amount(2e9),
 			outpoint:    breachOutPoints[1],
 			witnessType: lnwallet.CommitmentRevoke,
 			signDesc: lnwallet.SignDescriptor{
@@ -174,7 +174,7 @@ var (
 			},
 		},
 		{
-			amt:         btcutil.Amount(3e4),
+			amt:         dcrutil.Amount(3e4),
 			outpoint:    breachOutPoints[2],
 			witnessType: lnwallet.CommitmentDelayOutput,
 			signDesc: lnwallet.SignDescriptor{
@@ -396,7 +396,7 @@ func initBreachedOutputs() error {
 		bo := &breachedOutputs[i]
 
 		// Parse the sign descriptor's pubkey.
-		pubkey, err := btcec.ParsePubKey(breachKeys[i], btcec.S256())
+		pubkey, err := secp256k1.ParsePubKey(breachKeys[i])
 		if err != nil {
 			return fmt.Errorf("unable to parse pubkey: %v",
 				breachKeys[i])

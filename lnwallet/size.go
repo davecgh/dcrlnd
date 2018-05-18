@@ -1,11 +1,12 @@
 package lnwallet
 
 import (
-	"github.com/roasbeef/btcd/blockchain"
-	"github.com/roasbeef/btcd/wire"
+	"github.com/decred/dcrd/wire"
 )
 
 const (
+	// TODO(davec): Fix all of the sizes...
+
 	// CommitWeight is the weight of the base commitment transaction which
 	// includes: one p2wsh input, out p2wkh output, and one p2wsh output.
 	CommitWeight int64 = 724
@@ -15,11 +16,12 @@ const (
 )
 
 const (
+	// TODO(davec): Fix all of the sizes...
 	// witnessScaleFactor determines the level of "discount" witness data
 	// receives compared to "base" data. A scale factor of 4, denotes that
 	// witness data is 1/4 as cheap as regular non-witness data. Value copied
 	// here for convenience.
-	witnessScaleFactor = blockchain.WitnessScaleFactor
+	witnessScaleFactor = 1
 
 	// The weight(weight), which is different from the !size! (see BIP-141),
 	// is calculated as:

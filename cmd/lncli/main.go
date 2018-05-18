@@ -13,9 +13,9 @@ import (
 
 	"gopkg.in/macaroon.v1"
 
-	"github.com/lightningnetwork/lnd/lnrpc"
-	"github.com/lightningnetwork/lnd/macaroons"
-	"github.com/roasbeef/btcutil"
+	"github.com/decred/dcrd/dcrutil"
+	"github.com/decred/dcrlnd/lnrpc"
+	"github.com/decred/dcrlnd/macaroons"
 	"github.com/urfave/cli"
 
 	"google.golang.org/grpc"
@@ -28,7 +28,7 @@ const (
 )
 
 var (
-	lndHomeDir          = btcutil.AppDataDir("lnd", false)
+	lndHomeDir          = dcrutil.AppDataDir("dcrlnd", false)
 	defaultTLSCertPath  = filepath.Join(lndHomeDir, defaultTLSCertFilename)
 	defaultMacaroonPath = filepath.Join(lndHomeDir, defaultMacaroonFilename)
 )

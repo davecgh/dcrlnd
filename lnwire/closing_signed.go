@@ -3,8 +3,8 @@ package lnwire
 import (
 	"io"
 
-	"github.com/roasbeef/btcd/btcec"
-	"github.com/roasbeef/btcutil"
+	"github.com/decred/dcrd/dcrec/secp256k1"
+	"github.com/decred/dcrd/dcrutil"
 )
 
 // ClosingSigned is sent by both parties to a channel once the channel is clear
@@ -22,17 +22,18 @@ type ClosingSigned struct {
 	// ChannelID serves to identify which channel is to be closed.
 	ChannelID ChannelID
 
-	// FeeSatoshis is the total fee in satoshis that the party to the
+	// TODO(davec): Satoshi -> Atoms
+	// FeeSatoshis is the total fee in atoms that the party to the
 	// channel would like to propose for the close transaction.
-	FeeSatoshis btcutil.Amount
+	FeeSatoshis dcrutil.Amount
 
 	// Signature is for the proposed channel close transaction.
-	Signature *btcec.Signature
+	Signature *secp256k1.Signature
 }
 
 // NewClosingSigned creates a new empty ClosingSigned message.
-func NewClosingSigned(cid ChannelID, fs btcutil.Amount,
-	sig *btcec.Signature) *ClosingSigned {
+func NewClosingSigned(cid ChannelID, fs dcrutil.Amount,
+	sig *secp256k1.Signature) *ClosingSigned {
 
 	return &ClosingSigned{
 		ChannelID:   cid,

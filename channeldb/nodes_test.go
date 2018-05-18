@@ -7,8 +7,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/roasbeef/btcd/btcec"
-	"github.com/roasbeef/btcd/wire"
+	"github.com/decred/dcrd/dcrec/secp256k1"
+	"github.com/decred/dcrd/wire"
 )
 
 func TestLinkNodeEncodeDecode(t *testing.T) {
@@ -22,8 +22,8 @@ func TestLinkNodeEncodeDecode(t *testing.T) {
 
 	// First we'll create some initial data to use for populating our test
 	// LinkNode instances.
-	_, pub1 := btcec.PrivKeyFromBytes(btcec.S256(), key[:])
-	_, pub2 := btcec.PrivKeyFromBytes(btcec.S256(), rev[:])
+	_, pub1 := secp256k1.PrivKeyFromBytes(key[:])
+	_, pub2 := secp256k1.PrivKeyFromBytes(rev[:])
 	addr1, err := net.ResolveTCPAddr("tcp", "10.0.0.1:9000")
 	if err != nil {
 		t.Fatalf("unable to create test addr: %v", err)
@@ -36,7 +36,7 @@ func TestLinkNodeEncodeDecode(t *testing.T) {
 	// Create two fresh link node instances with the above dummy data, then
 	// fully sync both instances to disk.
 	node1 := cdb.NewLinkNode(wire.MainNet, pub1, addr1)
-	node2 := cdb.NewLinkNode(wire.TestNet3, pub2, addr2)
+	node2 := cdb.NewLinkNode(wire.TestNet2, pub2, addr2)
 	if err := node1.Sync(); err != nil {
 		t.Fatalf("unable to sync node: %v", err)
 	}

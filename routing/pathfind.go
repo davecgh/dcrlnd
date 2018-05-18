@@ -8,12 +8,12 @@ import (
 	"container/heap"
 
 	"github.com/boltdb/bolt"
-	"github.com/lightningnetwork/lightning-onion"
-	"github.com/lightningnetwork/lnd/channeldb"
-	"github.com/lightningnetwork/lnd/lnwire"
-	"github.com/roasbeef/btcd/btcec"
-	"github.com/roasbeef/btcd/chaincfg/chainhash"
-	"github.com/roasbeef/btcutil"
+	"github.com/decred/dcrd/chaincfg/chainhash"
+	"github.com/decred/dcrd/dcrec/secp256k1"
+	"github.com/decred/dcrd/dcrutil"
+	"github.com/decred/dcrlnd/channeldb"
+	"github.com/decred/dcrlnd/lnwire"
+	"github.com/lightningnetwork/lightning-onion" // TODO(davec): ok?
 )
 
 const (
@@ -34,7 +34,7 @@ const (
 type ChannelHop struct {
 	// Capacity is the total capacity of the channel being traversed. This
 	// value is expressed for stability in satoshis.
-	Capacity btcutil.Amount
+	Capacity dcrutil.Amount
 
 	// Chain is a 32-byte has that denotes the base blockchain network of
 	// the channel. The 32-byte hash is the "genesis" block of the
@@ -146,7 +146,7 @@ type Route struct {
 
 // nextHopVertex returns the next hop (by Vertex) after the target node. If the
 // target node is not found in the route, then false is returned.
-func (r *Route) nextHopVertex(n *btcec.PublicKey) (Vertex, bool) {
+func (r *Route) nextHopVertex(n *secp256k1.PublicKey) (Vertex, bool) {
 	hop, ok := r.nextHopMap[NewVertex(n)]
 	return NewVertex(hop.Node.PubKey), ok
 }
@@ -162,7 +162,7 @@ func (r *Route) nextHopChannel(n *btcec.PublicKey) (*ChannelHop, bool) {
 // prevHopChannel returns the uint64 channel ID of the before hop after the
 // target node. If the target node is not found in the route, then false is
 // returned.
-func (r *Route) prevHopChannel(n *btcec.PublicKey) (*ChannelHop, bool) {
+func (r *Route) prevHopChannel(n *secp256k1.PublicKey) (*ChannelHop, bool) {
 	hop, ok := r.prevHopMap[NewVertex(n)]
 	return hop, ok
 }
@@ -377,7 +377,7 @@ func newRoute(amtToSend lnwire.MilliSatoshi, sourceVertex Vertex,
 type Vertex [33]byte
 
 // NewVertex returns a new Vertex given a public key.
-func NewVertex(pub *btcec.PublicKey) Vertex {
+func NewVertex(pub *secp256k1.PublicKey) Vertex {
 	var v Vertex
 	copy(v[:], pub.SerializeCompressed())
 	return v
@@ -393,7 +393,7 @@ func (v Vertex) String() string {
 // directional edge with the node's ID in the opposite direction.
 type edgeWithPrev struct {
 	edge     *ChannelHop
-	prevNode *btcec.PublicKey
+	prevNode *secp256k1.PublicKey
 }
 
 // edgeWeight computes the weight of an edge. This value is used when searching
@@ -415,7 +415,7 @@ func edgeWeight(e *channeldb.ChannelEdgePolicy) float64 {
 // function returns a slice of ChannelHop structs which encoded the chosen path
 // from the target to the source.
 func findPath(tx *bolt.Tx, graph *channeldb.ChannelGraph,
-	sourceNode *channeldb.LightningNode, target *btcec.PublicKey,
+	sourceNode *channeldb.LightningNode, target *secp256k1.PublicKey,
 	ignoredNodes map[Vertex]struct{}, ignoredEdges map[uint64]struct{},
 	amt lnwire.MilliSatoshi) ([]*ChannelHop, error) {
 
@@ -610,7 +610,7 @@ func findPath(tx *bolt.Tx, graph *channeldb.ChannelGraph,
 // algorithm, rather than attempting to use an unmodified path finding
 // algorithm in a block box manner.
 func findPaths(tx *bolt.Tx, graph *channeldb.ChannelGraph,
-	source *channeldb.LightningNode, target *btcec.PublicKey,
+	source *channeldb.LightningNode, target *secp256k1.PublicKey,
 	amt lnwire.MilliSatoshi) ([][]*ChannelHop, error) {
 
 	// TODO(roasbeef): take in db tx

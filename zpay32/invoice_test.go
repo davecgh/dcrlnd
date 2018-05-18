@@ -8,22 +8,22 @@ import (
 	"testing"
 	"time"
 
-	"github.com/lightningnetwork/lnd/lnwire"
-	"github.com/lightningnetwork/lnd/zpay32"
-	"github.com/roasbeef/btcd/btcec"
-	"github.com/roasbeef/btcd/chaincfg"
-	"github.com/roasbeef/btcd/chaincfg/chainhash"
-	"github.com/roasbeef/btcutil"
+	"github.com/decred/dcrd/chaincfg"
+	"github.com/decred/dcrd/chaincfg/chainhash"
+	"github.com/decred/dcrd/dcrec/secp256k1"
+	"github.com/decred/dcrd/dcrutil"
+	"github.com/decred/dcrlnd/lnwire"
+	"github.com/decred/dcrlnd/zpay32"
 )
 
 var (
 	testPrivKeyBytes, _     = hex.DecodeString("e126f68f7eafcc8b74f54d269fe206be715000f94dac067d1c04a8ca3b2db734")
-	testPrivKey, testPubKey = btcec.PrivKeyFromBytes(btcec.S256(), testPrivKeyBytes)
+	testPrivKey, testPubKey = secp256k1.PrivKeyFromBytes(testPrivKeyBytes)
 
 	testRoutingInfoPubkeyBytes, _  = hex.DecodeString("029e03a901b85534ff1e92c43c74431f7ce72046060fcf7a95c37e148f78c77255")
-	testRoutingInfoPubkey, _       = btcec.ParsePubKey(testRoutingInfoPubkeyBytes, btcec.S256())
+	testRoutingInfoPubkey, _       = secp256k1.ParsePubKey(testRoutingInfoPubkeyBytes)
 	testRoutingInfoPubkeyBytes2, _ = hex.DecodeString("039e03a901b85534ff1e92c43c74431f7ce72046060fcf7a95c37e148f78c77255")
-	testRoutingInfoPubkey2, _      = btcec.ParsePubKey(testRoutingInfoPubkeyBytes2, btcec.S256())
+	testRoutingInfoPubkey2, _      = secp256k1.ParsePubKey(testRoutingInfoPubkeyBytes2)
 
 	testMillisat24BTC    = lnwire.MilliSatoshi(2400000000000)
 	testMillisat2500uBTC = lnwire.MilliSatoshi(250000000)
@@ -33,11 +33,11 @@ var (
 	testEmptyString          = ""
 	testCupOfCoffee          = "1 cup coffee"
 	testPleaseConsider       = "Please consider supporting this project"
-	testRustyAddr, _         = btcutil.DecodeAddress("1RustyRX2oai4EYYDpQGWvEL62BBGqN9T", &chaincfg.MainNetParams)
-	testAddrTestnet, _       = btcutil.DecodeAddress("mk2QpYatsKicvFVuTAQLBryyccRXMUaGHP", &chaincfg.TestNet3Params)
-	testAddrMainnetP2SH, _   = btcutil.DecodeAddress("3EktnHQD7RiAE6uzMj2ZifT9YgRrkSgzQX", &chaincfg.MainNetParams)
-	testAddrMainnetP2WPKH, _ = btcutil.DecodeAddress("bc1qw508d6qejxtdg4y5r3zarvary0c5xw7kv8f3t4", &chaincfg.MainNetParams)
-	testAddrMainnetP2WSH, _  = btcutil.DecodeAddress("bc1qrp33g0q5c5txsp9arysrx4k6zdkfs4nce4xj0gdcccefvpysxf3qccfmv3", &chaincfg.MainNetParams)
+	testRustyAddr, _         = dcrutil.DecodeAddress("1RustyRX2oai4EYYDpQGWvEL62BBGqN9T", &chaincfg.MainNetParams)                              // TODO(davec): Fix address...
+	testAddrTestnet, _       = dcrutil.DecodeAddress("mk2QpYatsKicvFVuTAQLBryyccRXMUaGHP", &chaincfg.TestNet3Params)                            // TODO(davec): Fix address...
+	testAddrMainnetP2SH, _   = dcrutil.DecodeAddress("3EktnHQD7RiAE6uzMj2ZifT9YgRrkSgzQX", &chaincfg.MainNetParams)                             // TODO(davec): Fix address...
+	testAddrMainnetP2WPKH, _ = dcrutil.DecodeAddress("bc1qw508d6qejxtdg4y5r3zarvary0c5xw7kv8f3t4", &chaincfg.MainNetParams)                     // TODO(davec): Fix address...
+	testAddrMainnetP2WSH, _  = dcrutil.DecodeAddress("bc1qrp33g0q5c5txsp9arysrx4k6zdkfs4nce4xj0gdcccefvpysxf3qccfmv3", &chaincfg.MainNetParams) // TODO(davec): Fix address...
 	testPaymentHashSlice, _  = hex.DecodeString("0001020304050607080900010203040506070809000102030405060708090102")
 	testDescriptionHashSlice = chainhash.HashB([]byte("One piece of chocolate cake, one icecream cone, one pickle, one slice of swiss cheese, one slice of salami, one lollypop, one piece of cherry pie, one sausage, one cupcake, and one slice of watermelon"))
 
@@ -47,8 +47,7 @@ var (
 
 	testMessageSigner = zpay32.MessageSigner{
 		SignCompact: func(hash []byte) ([]byte, error) {
-			sig, err := btcec.SignCompact(btcec.S256(),
-				testPrivKey, hash, true)
+			sig, err := secp256k1.SignCompact(testPrivKey, hash, true)
 			if err != nil {
 				return nil, fmt.Errorf("can't sign the "+
 					"message: %v", err)
@@ -668,7 +667,7 @@ func compareInvoices(expected, actual *zpay32.Invoice) error {
 	return nil
 }
 
-func comparePubkeys(a, b *btcec.PublicKey) bool {
+func comparePubkeys(a, b *secp256k1.PublicKey) bool {
 	if a == b {
 		return true
 	}

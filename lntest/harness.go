@@ -9,14 +9,14 @@ import (
 	"golang.org/x/net/context"
 	"google.golang.org/grpc/grpclog"
 
-	"github.com/lightningnetwork/lnd/lnrpc"
-	"github.com/roasbeef/btcd/chaincfg"
-	"github.com/roasbeef/btcd/chaincfg/chainhash"
-	"github.com/roasbeef/btcd/integration/rpctest"
-	"github.com/roasbeef/btcd/rpcclient"
-	"github.com/roasbeef/btcd/txscript"
-	"github.com/roasbeef/btcd/wire"
-	"github.com/roasbeef/btcutil"
+	"github.com/decred/dcrd/chaincfg"
+	"github.com/decred/dcrd/chaincfg/chainhash"
+	"github.com/decred/dcrd/dcrutil"
+	"github.com/decred/dcrd/rpcclient"
+	"github.com/decred/dcrd/rpctest"
+	"github.com/decred/dcrd/txscript"
+	"github.com/decred/dcrd/wire"
+	"github.com/decred/dcrlnd/lnrpc"
 )
 
 // NetworkHarness is an integration testing harness for the lightning network.
@@ -39,8 +39,8 @@ type NetworkHarness struct {
 	Alice *HarnessNode
 	Bob   *HarnessNode
 
-	seenTxns             chan *chainhash.Hash
-	bitcoinWatchRequests chan *txWatchRequest
+	seenTxns            chan *chainhash.Hash
+	decredWatchRequests chan *txWatchRequest
 
 	// Channel for transmitting stderr output from failed lightning node
 	// to main process.
@@ -57,15 +57,15 @@ type NetworkHarness struct {
 // within the repo each time before changes
 func NewNetworkHarness(r *rpctest.Harness) (*NetworkHarness, error) {
 	n := NetworkHarness{
-		activeNodes:          make(map[int]*HarnessNode),
-		nodesByPub:           make(map[string]*HarnessNode),
-		seenTxns:             make(chan *chainhash.Hash),
-		bitcoinWatchRequests: make(chan *txWatchRequest),
-		lndErrorChan:         make(chan error),
-		netParams:            r.ActiveNet,
-		Miner:                r,
-		rpcConfig:            r.RPCConfig(),
-		quit:                 make(chan struct{}),
+		activeNodes:         make(map[int]*HarnessNode),
+		nodesByPub:          make(map[string]*HarnessNode),
+		seenTxns:            make(chan *chainhash.Hash),
+		decredWatchRequests: make(chan *txWatchRequest),
+		lndErrorChan:        make(chan error),
+		netParams:           r.ActiveNet,
+		Miner:               r,
+		rpcConfig:           r.RPCConfig(),
+		quit:                make(chan struct{}),
 	}
 	go n.networkWatcher()
 	return &n, nil
@@ -157,7 +157,7 @@ func (n *NetworkHarness) SetUp(lndArgs []string) error {
 			if err != nil {
 				return err
 			}
-			addr, err := btcutil.DecodeAddress(resp.Address, n.netParams)
+			addr, err := dcrutil.DecodeAddress(resp.Address)
 			if err != nil {
 				return err
 			}
@@ -168,7 +168,7 @@ func (n *NetworkHarness) SetUp(lndArgs []string) error {
 
 			output := &wire.TxOut{
 				PkScript: addrScript,
-				Value:    btcutil.SatoshiPerBitcoin,
+				Value:    dcrutil.AtomsPerCoin,
 			}
 			if _, err := n.Miner.SendOutputs([]*wire.TxOut{output}, 30); err != nil {
 				return err
@@ -188,7 +188,7 @@ func (n *NetworkHarness) SetUp(lndArgs []string) error {
 	}
 
 	// Now block until both wallets have fully synced up.
-	expectedBalance := int64(btcutil.SatoshiPerBitcoin * 10)
+	expectedBalance := int64(dcrutil.AtomsPerCoin * 10)
 	balReq := &lnrpc.WalletBalanceRequest{}
 	balanceTicker := time.Tick(time.Millisecond * 50)
 	balanceTimeout := time.After(time.Second * 30)
@@ -377,7 +377,7 @@ type txWatchRequest struct {
 	eventChan chan struct{}
 }
 
-// bitcoinNetworkWatcher is a goroutine which accepts async notification
+// decredNetworkWatcher is a goroutine which accepts async notification
 // requests for the broadcast of a target transaction, and then dispatches the
 // transaction once its seen on the Bitcoin network.
 func (n *NetworkHarness) networkWatcher() {
@@ -390,7 +390,7 @@ func (n *NetworkHarness) networkWatcher() {
 		case <-n.quit:
 			return
 
-		case req := <-n.bitcoinWatchRequests:
+		case req := <-n.decredWatchRequests:
 			// If we've already seen this transaction, then
 			// immediately dispatch the request. Otherwise, append
 			// to the list of clients who are watching for the
@@ -448,7 +448,7 @@ func (n *NetworkHarness) WaitForTxBroadcast(ctx context.Context, txid chainhash.
 
 	eventChan := make(chan struct{})
 
-	n.bitcoinWatchRequests <- &txWatchRequest{
+	n.decredWatchRequests <- &txWatchRequest{
 		txid:      txid,
 		eventChan: eventChan,
 	}
@@ -468,8 +468,8 @@ func (n *NetworkHarness) WaitForTxBroadcast(ctx context.Context, txid chainhash.
 // if the timeout is reached before the channel pending notification is
 // received, an error is returned.
 func (n *NetworkHarness) OpenChannel(ctx context.Context,
-	srcNode, destNode *HarnessNode, amt btcutil.Amount,
-	pushAmt btcutil.Amount, private bool) (lnrpc.Lightning_OpenChannelClient, error) {
+	srcNode, destNode *HarnessNode, amt dcrutil.Amount,
+	pushAmt dcrutil.Amount, private bool) (lnrpc.Lightning_OpenChannelClient, error) {
 
 	// Wait until srcNode and destNode have the latest chain synced.
 	// Otherwise, we may run into a check within the funding manager that
@@ -531,8 +531,8 @@ func (n *NetworkHarness) OpenChannel(ctx context.Context,
 // if the timeout is reached before the channel pending notification is
 // received, an error is returned.
 func (n *NetworkHarness) OpenPendingChannel(ctx context.Context,
-	srcNode, destNode *HarnessNode, amt btcutil.Amount,
-	pushAmt btcutil.Amount) (*lnrpc.PendingUpdate, error) {
+	srcNode, destNode *HarnessNode, amt dcrutil.Amount,
+	pushAmt dcrutil.Amount) (*lnrpc.PendingUpdate, error) {
 
 	// Wait until srcNode and destNode have blockchain synced
 	if err := srcNode.WaitForBlockchainSync(ctx); err != nil {
@@ -860,7 +860,7 @@ func (n *NetworkHarness) DumpLogs(node *HarnessNode) (string, error) {
 
 // SendCoins attempts to send amt satoshis from the internal mining node to the
 // targeted lightning node.
-func (n *NetworkHarness) SendCoins(ctx context.Context, amt btcutil.Amount,
+func (n *NetworkHarness) SendCoins(ctx context.Context, amt dcrutil.Amount,
 	target *HarnessNode) error {
 
 	balReq := &lnrpc.WalletBalanceRequest{}
@@ -879,7 +879,7 @@ func (n *NetworkHarness) SendCoins(ctx context.Context, amt btcutil.Amount,
 	if err != nil {
 		return err
 	}
-	addr, err := btcutil.DecodeAddress(resp.Address, n.netParams)
+	addr, err := dcrutil.DecodeAddress(resp.Address)
 	if err != nil {
 		return err
 	}

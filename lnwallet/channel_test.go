@@ -16,16 +16,16 @@ import (
 	"time"
 
 	"github.com/davecgh/go-spew/spew"
-	"github.com/lightningnetwork/lnd/chainntnfs"
-	"github.com/lightningnetwork/lnd/channeldb"
-	"github.com/lightningnetwork/lnd/lnwire"
-	"github.com/lightningnetwork/lnd/shachain"
-	"github.com/roasbeef/btcd/blockchain"
-	"github.com/roasbeef/btcd/btcec"
-	"github.com/roasbeef/btcd/chaincfg/chainhash"
-	"github.com/roasbeef/btcd/txscript"
-	"github.com/roasbeef/btcd/wire"
-	"github.com/roasbeef/btcutil"
+	"github.com/decred/dcrd/blockchain"
+	"github.com/decred/dcrd/chaincfg/chainhash"
+	"github.com/decred/dcrd/dcrec/secp256k1"
+	"github.com/decred/dcrd/dcrutil"
+	"github.com/decred/dcrd/txscript"
+	"github.com/decred/dcrd/wire"
+	"github.com/decred/dcrlnd/chainntnfs"
+	"github.com/decred/dcrlnd/channeldb"
+	"github.com/decred/dcrlnd/lnwire"
+	"github.com/decred/dcrlnd/shachain"
 )
 
 var (
@@ -61,7 +61,7 @@ var (
 )
 
 type mockSigner struct {
-	key *btcec.PrivateKey
+	key *secp256k1.PrivateKey
 }
 
 func (m *mockSigner) SignOutputRaw(tx *wire.MsgTx, signDesc *SignDescriptor) ([]byte, error) {
@@ -285,10 +285,8 @@ func createTestChannelsWithNotifier(revocationWindow int,
 	notifier chainntnfs.ChainNotifier) (*LightningChannel,
 	*LightningChannel, func(), error) {
 
-	aliceKeyPriv, aliceKeyPub := btcec.PrivKeyFromBytes(btcec.S256(),
-		testWalletPrivKey)
-	bobKeyPriv, bobKeyPub := btcec.PrivKeyFromBytes(btcec.S256(),
-		bobsPrivKey)
+	aliceKeyPriv, aliceKeyPub := secp256k1.PrivKeyFromBytes(testWalletPrivKey)
+	bobKeyPriv, bobKeyPub := secp256k1.PrivKeyFromBytes(bobsPrivKey)
 
 	channelCapacity := btcutil.Amount(10 * 1e8)
 	channelBal := channelCapacity / 2
@@ -301,7 +299,7 @@ func createTestChannelsWithNotifier(revocationWindow int,
 		Hash:  chainhash.Hash(testHdSeed),
 		Index: 0,
 	}
-	fundingTxIn := wire.NewTxIn(prevOut, nil, nil)
+	fundingTxIn := wire.NewTxIn(prevOut, nil)
 
 	// TODO(roasbeef): use distinct keys
 	aliceCfg := channeldb.ChannelConfig{

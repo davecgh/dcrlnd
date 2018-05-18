@@ -1,8 +1,8 @@
 package chainview
 
 import (
-	"github.com/roasbeef/btcd/chaincfg/chainhash"
-	"github.com/roasbeef/btcd/wire"
+	"github.com/decred/dcrd/chaincfg/chainhash"
+	"github.com/decred/dcrd/wire"
 )
 
 // FilteredChainView represents a subscription to a certain subset of of the
@@ -68,7 +68,7 @@ type FilteredBlock struct {
 	Hash chainhash.Hash
 
 	// Height is the height of the newly filtered block.
-	Height uint32
+	Height int64
 
 	// Transactions is the set of transactions which modify (spend) the
 	// subscribed UTXO subset.

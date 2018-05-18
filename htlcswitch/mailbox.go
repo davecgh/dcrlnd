@@ -3,7 +3,7 @@ package htlcswitch
 import (
 	"sync"
 
-	"github.com/lightningnetwork/lnd/lnwire"
+	"github.com/decred/dcrlnd/lnwire"
 )
 
 // mailBox is an interface which represents a concurrent-safe, in-order

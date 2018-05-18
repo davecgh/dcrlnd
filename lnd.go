@@ -31,17 +31,18 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
 
-	proxy "github.com/grpc-ecosystem/grpc-gateway/runtime"
 	flags "github.com/jessevdk/go-flags"
-	"github.com/lightningnetwork/lnd/autopilot"
-	"github.com/lightningnetwork/lnd/channeldb"
-	"github.com/lightningnetwork/lnd/lnrpc"
-	"github.com/lightningnetwork/lnd/lnwallet"
-	"github.com/lightningnetwork/lnd/lnwire"
-	"github.com/lightningnetwork/lnd/macaroons"
-	"github.com/lightningnetwork/lnd/walletunlocker"
-	"github.com/roasbeef/btcd/btcec"
-	"github.com/roasbeef/btcutil"
+
+	"github.com/decred/dcrd/dcrec/secp256k1"
+	"github.com/decred/dcrd/dcrutil"
+	"github.com/decred/dcrlnd/autopilot"
+	"github.com/decred/dcrlnd/channeldb"
+	"github.com/decred/dcrlnd/lnrpc"
+	"github.com/decred/dcrlnd/lnwallet"
+	"github.com/decred/dcrlnd/lnwire"
+	"github.com/decred/dcrlnd/macaroons"
+	"github.com/decred/dcrlnd/walletunlocker"
+	proxy "github.com/grpc-ecosystem/grpc-gateway/runtime"
 )
 
 const (
@@ -229,7 +230,7 @@ func lndMain() error {
 	if err != nil {
 		return err
 	}
-	idPrivKey.Curve = btcec.S256()
+	idPrivKey.Curve = secp256k1.S256()
 
 	// Set up the core server which will listen for incoming peer
 	// connections.
@@ -255,8 +256,8 @@ func lndMain() error {
 		Wallet:       activeChainControl.wallet,
 		Notifier:     activeChainControl.chainNotifier,
 		FeeEstimator: activeChainControl.feeEstimator,
-		SignMessage: func(pubKey *btcec.PublicKey,
-			msg []byte) (*btcec.Signature, error) {
+		SignMessage: func(pubKey *secp256k1.PublicKey,
+			msg []byte) (*secp256k1.Signature, error) {
 
 			if pubKey.IsEqual(idPrivKey.PubKey()) {
 				return nodeSigner.SignMessage(pubKey, msg)
@@ -298,7 +299,7 @@ func lndMain() error {
 			return nil, fmt.Errorf("unable to find channel")
 		},
 		DefaultRoutingPolicy: activeChainControl.routingPolicy,
-		NumRequiredConfs: func(chanAmt btcutil.Amount,
+		NumRequiredConfs: func(chanAmt dcrutil.Amount,
 			pushAmt lnwire.MilliSatoshi) uint16 {
 			// For large channels we increase the number
 			// of confirmations we require for the
@@ -337,7 +338,7 @@ func lndMain() error {
 			}
 			return uint16(conf)
 		},
-		RequiredRemoteDelay: func(chanAmt btcutil.Amount) uint16 {
+		RequiredRemoteDelay: func(chanAmt dcrutil.Amount) uint16 {
 			// We scale the remote CSV delay (the time the
 			// remote have to claim funds in case of a unilateral
 			// close) linearly from minRemoteDelay blocks

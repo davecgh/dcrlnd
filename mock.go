@@ -3,21 +3,21 @@ package main
 import (
 	"fmt"
 
-	"github.com/lightningnetwork/lnd/chainntnfs"
-	"github.com/lightningnetwork/lnd/lnwallet"
-	"github.com/roasbeef/btcd/btcec"
-	"github.com/roasbeef/btcd/chaincfg"
-	"github.com/roasbeef/btcd/chaincfg/chainhash"
-	"github.com/roasbeef/btcd/txscript"
-	"github.com/roasbeef/btcd/wire"
-	"github.com/roasbeef/btcutil"
+	"github.com/decred/dcrd/chaincfg"
+	"github.com/decred/dcrd/chaincfg/chainhash"
+	"github.com/decred/dcrd/dcrec/secp256k1"
+	"github.com/decred/dcrd/dcrutil"
+	"github.com/decred/dcrd/txscript"
+	"github.com/decred/dcrd/wire"
+	"github.com/decred/dcrlnd/chainntnfs"
+	"github.com/decred/dcrlnd/lnwallet"
 )
 
 // The block height returned by the mock BlockChainIO's GetBestBlock.
 const fundingBroadcastHeight = 123
 
 type mockSigner struct {
-	key *btcec.PrivateKey
+	key *secp256k1.PrivateKey
 }
 
 func (m *mockSigner) SignOutputRaw(tx *wire.MsgTx,
@@ -178,8 +178,8 @@ func (*mockChainIO) GetBlock(blockHash *chainhash.Hash) (*wire.MsgBlock, error) 
 // mockWalletController is used by the LightningWallet, and let us mock the
 // interaction with the bitcoin network.
 type mockWalletController struct {
-	rootKey               *btcec.PrivateKey
-	prevAddres            btcutil.Address
+	rootKey               *secp256k1.PrivateKey
+	prevAddres            dcrutil.Address
 	publishedTransactions chan *wire.MsgTx
 }
 
@@ -193,39 +193,39 @@ func (*mockWalletController) BackEnd() string {
 func (*mockWalletController) FetchInputInfo(
 	prevOut *wire.OutPoint) (*wire.TxOut, error) {
 	txOut := &wire.TxOut{
-		Value:    int64(10 * btcutil.SatoshiPerBitcoin),
+		Value:    int64(10 * dcrutil.AtomsPerCoin),
 		PkScript: []byte("dummy"),
 	}
 	return txOut, nil
 }
 func (*mockWalletController) ConfirmedBalance(confs int32,
-	witness bool) (btcutil.Amount, error) {
+	witness bool) (dcrutil.Amount, error) {
 	return 0, nil
 }
 
 // NewAddress is called to get new addresses for delivery, change etc.
 func (m *mockWalletController) NewAddress(addrType lnwallet.AddressType,
-	change bool) (btcutil.Address, error) {
-	addr, _ := btcutil.NewAddressPubKey(
+	change bool) (dcrutil.Address, error) {
+	addr, _ := dcrutil.NewAddressPubKey(
 		m.rootKey.PubKey().SerializeCompressed(), &chaincfg.MainNetParams)
 	return addr, nil
 }
-func (*mockWalletController) GetPrivKey(a btcutil.Address) (*btcec.PrivateKey, error) {
+func (*mockWalletController) GetPrivKey(a dcrutil.Address) (*secp256k1.PrivateKey, error) {
 	return nil, nil
 }
 
 // NewRawKey will be called to get keys to be used for the funding tx and the
 // commitment tx.
-func (m *mockWalletController) NewRawKey() (*btcec.PublicKey, error) {
+func (m *mockWalletController) NewRawKey() (*secp256k1.PublicKey, error) {
 	return m.rootKey.PubKey(), nil
 }
 
 // FetchRootKey will be called to provide the wallet with a root key.
-func (m *mockWalletController) FetchRootKey() (*btcec.PrivateKey, error) {
+func (m *mockWalletController) FetchRootKey() (*secp256k1.PrivateKey, error) {
 	return m.rootKey, nil
 }
 func (*mockWalletController) SendOutputs(outputs []*wire.TxOut,
-	_ btcutil.Amount) (*chainhash.Hash, error) {
+	_ dcrutil.Amount) (*chainhash.Hash, error) {
 
 	return nil, nil
 }
@@ -235,7 +235,7 @@ func (*mockWalletController) SendOutputs(outputs []*wire.TxOut,
 func (*mockWalletController) ListUnspentWitness(confirms int32) ([]*lnwallet.Utxo, error) {
 	utxo := &lnwallet.Utxo{
 		AddressType: lnwallet.WitnessPubKey,
-		Value:       btcutil.Amount(10 * btcutil.SatoshiPerBitcoin),
+		Value:       dcrutil.Amount(10 * dcrutil.AtomsPerCoin),
 		PkScript:    make([]byte, 22),
 		OutPoint: wire.OutPoint{
 			Hash:  chainhash.Hash{},

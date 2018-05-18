@@ -3,25 +3,25 @@ package htlcswitch
 import (
 	"bytes"
 	"fmt"
+	"io"
+	"math"
 	"runtime"
 	"strings"
 	"sync"
 	"testing"
 	"time"
 
-	"io"
-
-	"math"
-
 	"github.com/davecgh/go-spew/spew"
 	"github.com/go-errors/errors"
-	"github.com/lightningnetwork/lnd/chainntnfs"
-	"github.com/lightningnetwork/lnd/channeldb"
-	"github.com/lightningnetwork/lnd/lnwallet"
-	"github.com/lightningnetwork/lnd/lnwire"
-	"github.com/roasbeef/btcd/chaincfg/chainhash"
-	"github.com/roasbeef/btcd/wire"
-	"github.com/roasbeef/btcutil"
+
+	"github.com/decred/dcrd/chaincfg/chainhash"
+	"github.com/decred/dcrd/dcrutil"
+	"github.com/decred/dcrd/wire"
+
+	"github.com/decred/dcrlnd/chainntnfs"
+	"github.com/decred/dcrlnd/channeldb"
+	"github.com/decred/dcrlnd/lnwallet"
+	"github.com/decred/dcrlnd/lnwire"
 )
 
 const (
@@ -176,8 +176,8 @@ func TestChannelLinkSingleHopPayment(t *testing.T) {
 	t.Parallel()
 
 	channels, cleanUp, _, err := createClusterChannels(
-		btcutil.SatoshiPerBitcoin*3,
-		btcutil.SatoshiPerBitcoin*5)
+		dcrutil.AtomsPerCoin*3,
+		dcrutil.AtomsPerCoin*5)
 	if err != nil {
 		t.Fatalf("unable to create channel: %v", err)
 	}
@@ -204,7 +204,7 @@ func TestChannelLinkSingleHopPayment(t *testing.T) {
 			n.firstBobChannelLink.ChanID()))
 	}
 
-	amount := lnwire.NewMSatFromSatoshis(btcutil.SatoshiPerBitcoin)
+	amount := lnwire.NewMSatFromSatoshis(dcrutil.AtomsPerCoin)
 	htlcAmt, totalTimelock, hops := generateHops(amount, testStartingHeight,
 		n.firstBobChannelLink)
 
@@ -256,8 +256,8 @@ func TestChannelLinkBidirectionalOneHopPayments(t *testing.T) {
 	t.Parallel()
 
 	channels, cleanUp, _, err := createClusterChannels(
-		btcutil.SatoshiPerBitcoin*3,
-		btcutil.SatoshiPerBitcoin*5)
+		dcrutil.AtomsPerCoin*3,
+		dcrutil.AtomsPerCoin*5)
 	if err != nil {
 		t.Fatalf("unable to create channel: %v", err)
 	}
@@ -388,8 +388,8 @@ func TestChannelLinkMultiHopPayment(t *testing.T) {
 	t.Parallel()
 
 	channels, cleanUp, _, err := createClusterChannels(
-		btcutil.SatoshiPerBitcoin*3,
-		btcutil.SatoshiPerBitcoin*5)
+		dcrutil.AtomsPerCoin*3,
+		dcrutil.AtomsPerCoin*5)
 	if err != nil {
 		t.Fatalf("unable to create channel: %v", err)
 	}
@@ -426,7 +426,7 @@ func TestChannelLinkMultiHopPayment(t *testing.T) {
 			n.carolChannelLink.ChanID()))
 	}
 
-	amount := lnwire.NewMSatFromSatoshis(btcutil.SatoshiPerBitcoin)
+	amount := lnwire.NewMSatFromSatoshis(dcrutil.AtomsPerCoin)
 	htlcAmt, totalTimelock, hops := generateHops(amount,
 		testStartingHeight,
 		n.firstBobChannelLink, n.carolChannelLink)
@@ -495,8 +495,8 @@ func TestExitNodeTimelockPayloadMismatch(t *testing.T) {
 	t.Parallel()
 
 	channels, cleanUp, _, err := createClusterChannels(
-		btcutil.SatoshiPerBitcoin*5,
-		btcutil.SatoshiPerBitcoin*5)
+		dcrutil.AtomsPerCoin*5,
+		dcrutil.AtomsPerCoin*5)
 	if err != nil {
 		t.Fatalf("unable to create channel: %v", err)
 	}
@@ -509,7 +509,7 @@ func TestExitNodeTimelockPayloadMismatch(t *testing.T) {
 	}
 	defer n.stop()
 
-	const amount = btcutil.SatoshiPerBitcoin
+	const amount = dcrutil.AtomsPerCoin
 	htlcAmt, htlcExpiry, hops := generateHops(amount,
 		testStartingHeight, n.firstBobChannelLink)
 
@@ -547,8 +547,8 @@ func TestExitNodeAmountPayloadMismatch(t *testing.T) {
 	t.Parallel()
 
 	channels, cleanUp, _, err := createClusterChannels(
-		btcutil.SatoshiPerBitcoin*5,
-		btcutil.SatoshiPerBitcoin*5)
+		dcrutil.AtomsPerCoin*5,
+		dcrutil.AtomsPerCoin*5)
 	if err != nil {
 		t.Fatalf("unable to create channel: %v", err)
 	}
@@ -561,7 +561,7 @@ func TestExitNodeAmountPayloadMismatch(t *testing.T) {
 	}
 	defer n.stop()
 
-	const amount = btcutil.SatoshiPerBitcoin
+	const amount = dcrutil.AtomsPerCoin
 	htlcAmt, htlcExpiry, hops := generateHops(amount, testStartingHeight,
 		n.firstBobChannelLink)
 
@@ -591,8 +591,8 @@ func TestLinkForwardTimelockPolicyMismatch(t *testing.T) {
 	t.Parallel()
 
 	channels, cleanUp, _, err := createClusterChannels(
-		btcutil.SatoshiPerBitcoin*5,
-		btcutil.SatoshiPerBitcoin*5)
+		dcrutil.AtomsPerCoin*5,
+		dcrutil.AtomsPerCoin*5)
 	if err != nil {
 		t.Fatalf("unable to create channel: %v", err)
 	}
@@ -606,7 +606,7 @@ func TestLinkForwardTimelockPolicyMismatch(t *testing.T) {
 	defer n.stop()
 
 	// We'll be sending 1 BTC over a 2-hop (3 vertex) route.
-	amount := lnwire.NewMSatFromSatoshis(btcutil.SatoshiPerBitcoin)
+	amount := lnwire.NewMSatFromSatoshis(dcrutil.AtomsPerCoin)
 
 	// Generate the route over two hops, ignoring the total time lock that
 	// we'll need to use for the first HTLC in order to have a sufficient
@@ -646,8 +646,8 @@ func TestLinkForwardFeePolicyMismatch(t *testing.T) {
 	t.Parallel()
 
 	channels, cleanUp, _, err := createClusterChannels(
-		btcutil.SatoshiPerBitcoin*3,
-		btcutil.SatoshiPerBitcoin*5)
+		dcrutil.AtomsPerCoin*3,
+		dcrutil.AtomsPerCoin*5)
 	if err != nil {
 		t.Fatalf("unable to create channel: %v", err)
 	}
@@ -663,7 +663,7 @@ func TestLinkForwardFeePolicyMismatch(t *testing.T) {
 	// We'll be sending 1 BTC over a 2-hop (3 vertex) route. Given the
 	// current default fee of 1 SAT, if we just send a single BTC over in
 	// an HTLC, it should be rejected.
-	amountNoFee := lnwire.NewMSatFromSatoshis(btcutil.SatoshiPerBitcoin)
+	amountNoFee := lnwire.NewMSatFromSatoshis(dcrutil.AtomsPerCoin)
 
 	// Generate the route over two hops, ignoring the amount we _should_
 	// actually send in order to be able to cover fees.
@@ -702,8 +702,8 @@ func TestLinkForwardMinHTLCPolicyMismatch(t *testing.T) {
 	t.Parallel()
 
 	channels, cleanUp, _, err := createClusterChannels(
-		btcutil.SatoshiPerBitcoin*5,
-		btcutil.SatoshiPerBitcoin*5)
+		dcrutil.AtomsPerCoin*5,
+		dcrutil.AtomsPerCoin*5)
 	if err != nil {
 		t.Fatalf("unable to create channel: %v", err)
 	}
@@ -759,8 +759,8 @@ func TestUpdateForwardingPolicy(t *testing.T) {
 	t.Parallel()
 
 	channels, cleanUp, _, err := createClusterChannels(
-		btcutil.SatoshiPerBitcoin*5,
-		btcutil.SatoshiPerBitcoin*5)
+		dcrutil.AtomsPerCoin*5,
+		dcrutil.AtomsPerCoin*5)
 	if err != nil {
 		t.Fatalf("unable to create channel: %v", err)
 	}
@@ -860,8 +860,8 @@ func TestChannelLinkMultiHopInsufficientPayment(t *testing.T) {
 	t.Parallel()
 
 	channels, cleanUp, _, err := createClusterChannels(
-		btcutil.SatoshiPerBitcoin*3,
-		btcutil.SatoshiPerBitcoin*5)
+		dcrutil.AtomsPerCoin*3,
+		dcrutil.AtomsPerCoin*5)
 	if err != nil {
 		t.Fatalf("unable to create channel: %v", err)
 	}
@@ -882,7 +882,7 @@ func TestChannelLinkMultiHopInsufficientPayment(t *testing.T) {
 	// We'll attempt to send 4 BTC although the alice-to-bob channel only
 	// has 3 BTC total capacity. As a result, this payment should be
 	// rejected.
-	amount := lnwire.NewMSatFromSatoshis(4 * btcutil.SatoshiPerBitcoin)
+	amount := lnwire.NewMSatFromSatoshis(4 * dcrutil.AtomsPerCoin)
 	htlcAmt, totalTimelock, hops := generateHops(amount, testStartingHeight,
 		n.firstBobChannelLink, n.carolChannelLink)
 
@@ -945,8 +945,8 @@ func TestChannelLinkMultiHopUnknownPaymentHash(t *testing.T) {
 	t.Parallel()
 
 	channels, cleanUp, _, err := createClusterChannels(
-		btcutil.SatoshiPerBitcoin*5,
-		btcutil.SatoshiPerBitcoin*5)
+		dcrutil.AtomsPerCoin*5,
+		dcrutil.AtomsPerCoin*5)
 	if err != nil {
 		t.Fatalf("unable to create channel: %v", err)
 	}
@@ -964,7 +964,7 @@ func TestChannelLinkMultiHopUnknownPaymentHash(t *testing.T) {
 	secondBobBandwidthBefore := n.secondBobChannelLink.Bandwidth()
 	aliceBandwidthBefore := n.aliceChannelLink.Bandwidth()
 
-	amount := lnwire.NewMSatFromSatoshis(btcutil.SatoshiPerBitcoin)
+	amount := lnwire.NewMSatFromSatoshis(dcrutil.AtomsPerCoin)
 
 	htlcAmt, totalTimelock, hops := generateHops(amount, testStartingHeight,
 		n.firstBobChannelLink, n.carolChannelLink)
@@ -1034,8 +1034,8 @@ func TestChannelLinkMultiHopUnknownNextHop(t *testing.T) {
 	t.Parallel()
 
 	channels, cleanUp, _, err := createClusterChannels(
-		btcutil.SatoshiPerBitcoin*5,
-		btcutil.SatoshiPerBitcoin*5)
+		dcrutil.AtomsPerCoin*5,
+		dcrutil.AtomsPerCoin*5)
 	if err != nil {
 		t.Fatalf("unable to create channel: %v", err)
 	}
@@ -1053,7 +1053,7 @@ func TestChannelLinkMultiHopUnknownNextHop(t *testing.T) {
 	secondBobBandwidthBefore := n.secondBobChannelLink.Bandwidth()
 	aliceBandwidthBefore := n.aliceChannelLink.Bandwidth()
 
-	amount := lnwire.NewMSatFromSatoshis(btcutil.SatoshiPerBitcoin)
+	amount := lnwire.NewMSatFromSatoshis(dcrutil.AtomsPerCoin)
 	htlcAmt, totalTimelock, hops := generateHops(amount, testStartingHeight,
 		n.firstBobChannelLink, n.carolChannelLink)
 
@@ -1109,8 +1109,8 @@ func TestChannelLinkMultiHopDecodeError(t *testing.T) {
 	t.Parallel()
 
 	channels, cleanUp, _, err := createClusterChannels(
-		btcutil.SatoshiPerBitcoin*3,
-		btcutil.SatoshiPerBitcoin*5)
+		dcrutil.AtomsPerCoin*3,
+		dcrutil.AtomsPerCoin*5)
 	if err != nil {
 		t.Fatalf("unable to create channel: %v", err)
 	}
@@ -1134,7 +1134,7 @@ func TestChannelLinkMultiHopDecodeError(t *testing.T) {
 	secondBobBandwidthBefore := n.secondBobChannelLink.Bandwidth()
 	aliceBandwidthBefore := n.aliceChannelLink.Bandwidth()
 
-	amount := lnwire.NewMSatFromSatoshis(btcutil.SatoshiPerBitcoin)
+	amount := lnwire.NewMSatFromSatoshis(dcrutil.AtomsPerCoin)
 	htlcAmt, totalTimelock, hops := generateHops(amount, testStartingHeight,
 		n.firstBobChannelLink, n.carolChannelLink)
 
@@ -1200,8 +1200,8 @@ func TestChannelLinkExpiryTooSoonExitNode(t *testing.T) {
 	// The starting height for this test will be 200. So we'll base all
 	// HTLC starting points off of that.
 	channels, cleanUp, _, err := createClusterChannels(
-		btcutil.SatoshiPerBitcoin*3,
-		btcutil.SatoshiPerBitcoin*5)
+		dcrutil.AtomsPerCoin*3,
+		dcrutil.AtomsPerCoin*5)
 	if err != nil {
 		t.Fatalf("unable to create channel: %v", err)
 	}
@@ -1215,7 +1215,7 @@ func TestChannelLinkExpiryTooSoonExitNode(t *testing.T) {
 	}
 	defer n.stop()
 
-	amount := lnwire.NewMSatFromSatoshis(btcutil.SatoshiPerBitcoin)
+	amount := lnwire.NewMSatFromSatoshis(dcrutil.AtomsPerCoin)
 
 	// We'll craft an HTLC packet, but set the starting height to 10 blocks
 	// before the current true height.
@@ -1257,8 +1257,8 @@ func TestChannelLinkExpiryTooSoonMidNode(t *testing.T) {
 	// The starting height for this test will be 200. So we'll base all
 	// HTLC starting points off of that.
 	channels, cleanUp, _, err := createClusterChannels(
-		btcutil.SatoshiPerBitcoin*3,
-		btcutil.SatoshiPerBitcoin*5)
+		dcrutil.AtomsPerCoin*3,
+		dcrutil.AtomsPerCoin*5)
 	if err != nil {
 		t.Fatalf("unable to create channel: %v", err)
 	}
@@ -1272,7 +1272,7 @@ func TestChannelLinkExpiryTooSoonMidNode(t *testing.T) {
 	}
 	defer n.stop()
 
-	amount := lnwire.NewMSatFromSatoshis(btcutil.SatoshiPerBitcoin)
+	amount := lnwire.NewMSatFromSatoshis(dcrutil.AtomsPerCoin)
 
 	// We'll craft an HTLC packet, but set the starting height to 10 blocks
 	// before the current true height. The final route will be three hops,
@@ -1312,8 +1312,8 @@ func TestChannelLinkSingleHopMessageOrdering(t *testing.T) {
 	t.Parallel()
 
 	channels, cleanUp, _, err := createClusterChannels(
-		btcutil.SatoshiPerBitcoin*3,
-		btcutil.SatoshiPerBitcoin*5)
+		dcrutil.AtomsPerCoin*3,
+		dcrutil.AtomsPerCoin*5)
 	if err != nil {
 		t.Fatalf("unable to create channel: %v", err)
 	}
@@ -1368,7 +1368,7 @@ func TestChannelLinkSingleHopMessageOrdering(t *testing.T) {
 	}
 	defer n.stop()
 
-	amount := lnwire.NewMSatFromSatoshis(btcutil.SatoshiPerBitcoin)
+	amount := lnwire.NewMSatFromSatoshis(dcrutil.AtomsPerCoin)
 	htlcAmt, totalTimelock, hops := generateHops(amount, testStartingHeight,
 		n.firstBobChannelLink)
 
@@ -1417,7 +1417,7 @@ func (m *mockPeer) popSentMsg() lnwire.Message {
 
 var _ Peer = (*mockPeer)(nil)
 
-func newSingleLinkTestHarness(chanAmt btcutil.Amount) (ChannelLink, func(), error) {
+func newSingleLinkTestHarness(chanAmt dcrutil.Amount) (ChannelLink, func(), error) {
 	globalEpoch := &chainntnfs.BlockEpochEvent{
 		Epochs: make(chan *chainntnfs.BlockEpoch),
 		Cancel: func() {
@@ -1497,7 +1497,7 @@ func TestChannelLinkBandwidthConsistency(t *testing.T) {
 	//  * or also able to consult link
 
 	// We'll start the test by creating a single instance of
-	const chanAmt = btcutil.SatoshiPerBitcoin * 5
+	const chanAmt = dcrutil.AtomsPerCoin * 5
 	aliceLink, cleanUp, err := newSingleLinkTestHarness(chanAmt)
 	if err != nil {
 		t.Fatalf("unable to create link: %v", err)
@@ -1520,7 +1520,7 @@ func TestChannelLinkBandwidthConsistency(t *testing.T) {
 	}
 	feePerKw := feePerWeight * 1000
 	htlcFee := lnwire.NewMSatFromSatoshis(
-		btcutil.Amount((int64(feePerKw) * lnwallet.HtlcWeight) / 1000),
+		dcrutil.Amount((int64(feePerKw) * lnwallet.HtlcWeight) / 1000),
 	)
 
 	// The starting bandwidth of the channel should be exactly the amount
@@ -1531,7 +1531,7 @@ func TestChannelLinkBandwidthConsistency(t *testing.T) {
 	// Next, we'll create an HTLC worth 1 BTC, and send it into the link as
 	// a switch initiated payment.  The resulting bandwidth should
 	// now be decremented to reflect the new HTLC.
-	htlcAmt := lnwire.NewMSatFromSatoshis(btcutil.SatoshiPerBitcoin)
+	htlcAmt := lnwire.NewMSatFromSatoshis(dcrutil.AtomsPerCoin)
 	invoice, htlc, err := generatePayment(htlcAmt, htlcAmt, 5, mockBlob)
 	if err != nil {
 		t.Fatalf("unable to create payment: %v", err)
@@ -1634,7 +1634,7 @@ func TestChannelLinkBandwidthConsistencyOverflow(t *testing.T) {
 
 	var mockBlob [lnwire.OnionPacketSize]byte
 
-	const chanAmt = btcutil.SatoshiPerBitcoin * 5
+	const chanAmt = dcrutil.AtomsPerCoin * 5
 	aliceLink, cleanUp, err := newSingleLinkTestHarness(chanAmt)
 	if err != nil {
 		t.Fatalf("unable to create link: %v", err)
@@ -1687,7 +1687,7 @@ func TestChannelLinkBandwidthConsistencyOverflow(t *testing.T) {
 	time.Sleep(time.Second * 1)
 	commitWeight := lnwallet.CommitWeight + lnwallet.HtlcWeight*numHTLCs
 	htlcFee := lnwire.NewMSatFromSatoshis(
-		btcutil.Amount((int64(feePerKw) * commitWeight) / 1000),
+		dcrutil.Amount((int64(feePerKw) * commitWeight) / 1000),
 	)
 	expectedBandwidth := aliceStartingBandwidth - totalHtlcAmt - htlcFee
 	expectedBandwidth += lnwire.NewMSatFromSatoshis(defaultCommitFee)
@@ -1891,8 +1891,8 @@ func TestChannelRetransmission(t *testing.T) {
 	}
 	paymentWithRestart := func(t *testing.T, messages []expectedMessage) {
 		channels, cleanUp, restoreChannelsFromDb, err := createClusterChannels(
-			btcutil.SatoshiPerBitcoin*5,
-			btcutil.SatoshiPerBitcoin*5)
+			dcrutil.AtomsPerCoin*5,
+			dcrutil.AtomsPerCoin*5)
 		if err != nil {
 			t.Fatalf("unable to create channel: %v", err)
 		}
@@ -1925,7 +1925,7 @@ func TestChannelRetransmission(t *testing.T) {
 		bobBandwidthBefore := n.firstBobChannelLink.Bandwidth()
 		aliceBandwidthBefore := n.aliceChannelLink.Bandwidth()
 
-		amount := lnwire.NewMSatFromSatoshis(btcutil.SatoshiPerBitcoin)
+		amount := lnwire.NewMSatFromSatoshis(dcrutil.AtomsPerCoin)
 		htlcAmt, totalTimelock, hops := generateHops(amount, testStartingHeight,
 			n.firstBobChannelLink)
 
@@ -2028,8 +2028,8 @@ func TestChannelRetransmission(t *testing.T) {
 // deviates from our current fee by more 10% or more.
 func TestShouldAdjustCommitFee(t *testing.T) {
 	tests := []struct {
-		netFee       btcutil.Amount
-		chanFee      btcutil.Amount
+		netFee       dcrutil.Amount
+		chanFee      dcrutil.Amount
 		shouldAdjust bool
 	}{
 
@@ -2130,8 +2130,8 @@ func TestChannelLinkUpdateCommitFee(t *testing.T) {
 	// interacting with and asserting the state of two of the end points
 	// for this test.
 	channels, cleanUp, _, err := createClusterChannels(
-		btcutil.SatoshiPerBitcoin*3,
-		btcutil.SatoshiPerBitcoin*5)
+		dcrutil.AtomsPerCoin*3,
+		dcrutil.AtomsPerCoin*5)
 	if err != nil {
 		t.Fatalf("unable to create channel: %v", err)
 	}
@@ -2277,8 +2277,8 @@ func TestChannelLinkRejectDuplicatePayment(t *testing.T) {
 	// interacting with and asserting the state of two of the end points
 	// for this test.
 	channels, cleanUp, _, err := createClusterChannels(
-		btcutil.SatoshiPerBitcoin*3,
-		btcutil.SatoshiPerBitcoin*5)
+		dcrutil.AtomsPerCoin*3,
+		dcrutil.AtomsPerCoin*5)
 	if err != nil {
 		t.Fatalf("unable to create channel: %v", err)
 	}
@@ -2291,7 +2291,7 @@ func TestChannelLinkRejectDuplicatePayment(t *testing.T) {
 	}
 	defer n.stop()
 
-	amount := lnwire.NewMSatFromSatoshis(btcutil.SatoshiPerBitcoin)
+	amount := lnwire.NewMSatFromSatoshis(dcrutil.AtomsPerCoin)
 
 	// We'll start off by making a payment from Alice to Carol. We'll
 	// manually generate this request so we can control all the parameters.

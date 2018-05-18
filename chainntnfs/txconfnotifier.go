@@ -3,8 +3,8 @@ package chainntnfs
 import (
 	"fmt"
 
-	"github.com/roasbeef/btcd/chaincfg/chainhash"
-	"github.com/roasbeef/btcutil"
+	"github.com/decred/dcrd/chaincfg/chainhash"
+	"github.com/decred/dcrd/dcrutil"
 )
 
 // ConfNtfn represents a notifier client's request to receive a notification
@@ -156,7 +156,7 @@ func (tcn *TxConfNotifier) Register(ntfn *ConfNtfn, txConf *TxConfirmation) erro
 // confirmations as a result of this block being connected, this dispatches
 // notifications.
 func (tcn *TxConfNotifier) ConnectTip(blockHash *chainhash.Hash,
-	blockHeight uint32, txns []*btcutil.Tx) error {
+	blockHeight uint32, txns []*dcrutil.Tx) error {
 
 	select {
 	case <-tcn.quit:

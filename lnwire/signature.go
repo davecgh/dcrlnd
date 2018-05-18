@@ -3,12 +3,12 @@ package lnwire
 import (
 	"fmt"
 
-	"github.com/roasbeef/btcd/btcec"
+	"github.com/decred/dcrd/dcrec/secp256k1"
 )
 
 // SerializeSigToWire serializes a *Signature to [64]byte in the format
 // specified by the Lightning RFC.
-func SerializeSigToWire(b *[64]byte, e *btcec.Signature) error {
+func SerializeSigToWire(b *[64]byte, e *secp256k1.Signature) error {
 
 	// Serialize the signature with all the checks that entails.
 	sig := e.Serialize()
@@ -18,7 +18,7 @@ func SerializeSigToWire(b *[64]byte, e *btcec.Signature) error {
 	// which means the length of R is the 4th byte and the length of S
 	// is the second byte after R ends. 0x02 signifies a length-prefixed,
 	// zero-padded, big-endian bigint. 0x30 sigifies a DER signature.
-	// See the Serialize() method for btcec.Signature for details.
+	// See the Serialize() method for secp256k1.Signature for details.
 	rLen := sig[3]
 	sLen := sig[5+rLen]
 
@@ -55,7 +55,7 @@ func SerializeSigToWire(b *[64]byte, e *btcec.Signature) error {
 
 // DeserializeSigFromWire deserializes a *Signature from [64]byte in the format
 // specified by the Lightning RFC.
-func DeserializeSigFromWire(e **btcec.Signature, b [64]byte) error {
+func DeserializeSigFromWire(e **secp256k1.Signature, b [64]byte) error {
 
 	// Extract canonically-padded bigint representations from buffer
 	r := extractCanonicalPadding(b[0:32])
@@ -76,7 +76,7 @@ func DeserializeSigFromWire(e **btcec.Signature, b [64]byte) error {
 	copy(sigBytes[rLen+6:], s)    // Copy S
 
 	// Parse the signature with strict checks.
-	sig, err := btcec.ParseDERSignature(sigBytes, btcec.S256())
+	sig, err := secp256k1.ParseDERSignature(sigBytes, secp256k1.S256())
 	if err != nil {
 		return err
 	}
@@ -86,7 +86,7 @@ func DeserializeSigFromWire(e **btcec.Signature, b [64]byte) error {
 
 // extractCanonicalPadding is a utility function to extract the canonical
 // padding of a big-endian integer from the wire encoding (a 0-padded
-// big-endian integer) such that it passes btcec.canonicalPadding test.
+// big-endian integer) such that it passes secp256k1.canonicalPadding test.
 func extractCanonicalPadding(b []byte) []byte {
 	for i := 0; i < len(b); i++ {
 		// Found first non-zero byte.

@@ -8,11 +8,11 @@ import (
 	"testing"
 	"time"
 
-	"github.com/roasbeef/btcd/btcec"
-	"github.com/roasbeef/btcd/chaincfg/chainhash"
-	"github.com/roasbeef/btcd/txscript"
-	"github.com/roasbeef/btcd/wire"
-	"github.com/roasbeef/btcutil"
+	"github.com/decred/dcrd/chaincfg/chainhash"
+	"github.com/decred/dcrd/dcrec/secp256k1"
+	"github.com/decred/dcrd/dcrutil"
+	"github.com/decred/dcrd/txscript"
+	"github.com/decred/dcrd/wire"
 )
 
 // TestCommitmentSpendValidation test the spendability of both outputs within
@@ -38,22 +38,19 @@ func TestCommitmentSpendValidation(t *testing.T) {
 		Hash:  *txid,
 		Index: 50,
 	}
-	fakeFundingTxIn := wire.NewTxIn(fundingOut, nil, nil)
+	fakeFundingTxIn := wire.NewTxIn(fundingOut, nil)
 
-	const channelBalance = btcutil.Amount(1 * 10e8)
+	const channelBalance = dcrutil.Amount(1 * 10e8)
 	const csvTimeout = uint32(5)
 
 	// We also set up set some resources for the commitment transaction.
 	// Each side currently has 1 BTC within the channel, with a total
 	// channel capacity of 2BTC.
-	aliceKeyPriv, aliceKeyPub := btcec.PrivKeyFromBytes(btcec.S256(),
-		testWalletPrivKey)
-	bobKeyPriv, bobKeyPub := btcec.PrivKeyFromBytes(btcec.S256(),
-		bobsPrivKey)
+	aliceKeyPriv, aliceKeyPub := secp256k1.PrivKeyFromBytes(testWalletPrivKey)
+	bobKeyPriv, bobKeyPub := secp256k1.PrivKeyFromBytes(bobsPrivKey)
 
 	revocationPreimage := testHdSeed.CloneBytes()
-	commitSecret, commitPoint := btcec.PrivKeyFromBytes(btcec.S256(),
-		revocationPreimage)
+	commitSecret, commitPoint := secp256k1.PrivKeyFromBytes(revocationPreimage)
 	revokePubKey := DeriveRevocationPubkey(bobKeyPub, commitPoint)
 
 	aliceDelayKey := TweakPubKey(aliceKeyPub, commitPoint)
@@ -95,7 +92,7 @@ func TestCommitmentSpendValidation(t *testing.T) {
 	sweepTx.AddTxIn(wire.NewTxIn(&wire.OutPoint{
 		Hash:  commitmentTx.TxHash(),
 		Index: 0,
-	}, nil, nil))
+	}, nil))
 	sweepTx.AddTxOut(&wire.TxOut{
 		PkScript: targetOutput,
 		Value:    0.5 * 10e8,
@@ -221,13 +218,11 @@ func TestRevocationKeyDerivation(t *testing.T) {
 	// First, we'll generate a commitment point, and a commitment secret.
 	// These will be used to derive the ultimate revocation keys.
 	revocationPreimage := testHdSeed.CloneBytes()
-	commitSecret, commitPoint := btcec.PrivKeyFromBytes(btcec.S256(),
-		revocationPreimage)
+	commitSecret, commitPoint := secp256k1.PrivKeyFromBytes(revocationPreimage)
 
 	// With the commitment secrets generated, we'll now create the base
 	// keys we'll use to derive the revocation key from.
-	basePriv, basePub := btcec.PrivKeyFromBytes(btcec.S256(),
-		testWalletPrivKey)
+	basePriv, basePub := secp256k1.PrivKeyFromBytes(testWalletPrivKey)
 
 	// With the point and key obtained, we can now derive the revocation
 	// key itself.
@@ -250,7 +245,7 @@ func TestTweakKeyDerivation(t *testing.T) {
 
 	// First, we'll generate a base public key that we'll be "tweaking".
 	baseSecret := testHdSeed.CloneBytes()
-	basePriv, basePub := btcec.PrivKeyFromBytes(btcec.S256(), baseSecret)
+	basePriv, basePub := secp256k1.PrivKeyFromBytes(baseSecret)
 
 	// With the base key create, we'll now create a commitment point, and
 	// from that derive the bytes we'll used to tweak the base public key.
@@ -274,9 +269,9 @@ func TestTweakKeyDerivation(t *testing.T) {
 // allows constructing table-driven tests. In the case of an error while
 // constructing the witness, the test fails fatally.
 func makeWitnessTestCase(t *testing.T,
-	f func() (wire.TxWitness, error)) func() wire.TxWitness {
+	f func() (TxWitness, error)) func() TxWitness {
 
-	return func() wire.TxWitness {
+	return func() TxWitness {
 		witness, err := f()
 		if err != nil {
 			t.Fatalf("unable to create witness test case: %v", err)
@@ -314,13 +309,12 @@ func TestHTLCSenderSpendValidation(t *testing.T) {
 		Hash:  *txid,
 		Index: 50,
 	}
-	fakeFundingTxIn := wire.NewTxIn(fundingOut, nil, nil)
+	fakeFundingTxIn := wire.NewTxIn(fundingOut, nil)
 
 	// Next we'll the commitment secret for our commitment tx and also the
 	// revocation key that we'll use as well.
 	revokePreimage := testHdSeed.CloneBytes()
-	commitSecret, commitPoint := btcec.PrivKeyFromBytes(btcec.S256(),
-		revokePreimage)
+	commitSecret, commitPoint := secp256k1.PrivKeyFromBytes(revokePreimage)
 
 	// Generate a payment preimage to be used below.
 	paymentPreimage := revokePreimage
@@ -329,11 +323,9 @@ func TestHTLCSenderSpendValidation(t *testing.T) {
 
 	// We'll also need some tests keys for alice and bob, and metadata of
 	// the HTLC output.
-	aliceKeyPriv, aliceKeyPub := btcec.PrivKeyFromBytes(btcec.S256(),
-		testWalletPrivKey)
-	bobKeyPriv, bobKeyPub := btcec.PrivKeyFromBytes(btcec.S256(),
-		bobsPrivKey)
-	paymentAmt := btcutil.Amount(1 * 10e8)
+	aliceKeyPriv, aliceKeyPub := secp256k1.PrivKeyFromBytes(testWalletPrivKey)
+	bobKeyPriv, bobKeyPub := secp256k1.PrivKeyFromBytes(bobsPrivKey)
+	paymentAmt := dcrutil.Amount(1 * 10e8)
 
 	aliceLocalKey := TweakPubKey(aliceKeyPub, commitPoint)
 	bobLocalKey := TweakPubKey(bobKeyPub, commitPoint)
@@ -370,7 +362,7 @@ func TestHTLCSenderSpendValidation(t *testing.T) {
 	}
 
 	sweepTx := wire.NewMsgTx(2)
-	sweepTx.AddTxIn(wire.NewTxIn(prevOut, nil, nil))
+	sweepTx.AddTxIn(wire.NewTxIn(prevOut, nil))
 	sweepTx.AddTxOut(
 		&wire.TxOut{
 			PkScript: []byte("doesn't matter"),
@@ -406,13 +398,13 @@ func TestHTLCSenderSpendValidation(t *testing.T) {
 	}
 
 	testCases := []struct {
-		witness func() wire.TxWitness
+		witness func() TxWitness
 		valid   bool
 	}{
 		{
 			// revoke w/ sig
 			// TODO(roasbeef): test invalid revoke
-			makeWitnessTestCase(t, func() (wire.TxWitness, error) {
+			makeWitnessTestCase(t, func() (TxWitness, error) {
 				signDesc := &SignDescriptor{
 					PubKey:        bobKeyPub,
 					DoubleTweak:   commitSecret,
@@ -430,7 +422,7 @@ func TestHTLCSenderSpendValidation(t *testing.T) {
 		},
 		{
 			// HTLC with invalid preimage size
-			makeWitnessTestCase(t, func() (wire.TxWitness, error) {
+			makeWitnessTestCase(t, func() (TxWitness, error) {
 				signDesc := &SignDescriptor{
 					PubKey:        bobKeyPub,
 					SingleTweak:   bobCommitTweak,
@@ -451,7 +443,7 @@ func TestHTLCSenderSpendValidation(t *testing.T) {
 		{
 			// HTLC with valid preimage size + sig
 			// TODO(roabeef): invalid preimage
-			makeWitnessTestCase(t, func() (wire.TxWitness, error) {
+			makeWitnessTestCase(t, func() (TxWitness, error) {
 				signDesc := &SignDescriptor{
 					PubKey:        bobKeyPub,
 					SingleTweak:   bobCommitTweak,
@@ -471,7 +463,7 @@ func TestHTLCSenderSpendValidation(t *testing.T) {
 			// valid spend to the transition the state of the HTLC
 			// output with the second level HTLC timeout
 			// transaction.
-			makeWitnessTestCase(t, func() (wire.TxWitness, error) {
+			makeWitnessTestCase(t, func() (TxWitness, error) {
 				signDesc := &SignDescriptor{
 					PubKey:        aliceKeyPub,
 					SingleTweak:   aliceCommitTweak,
@@ -555,13 +547,12 @@ func TestHTLCReceiverSpendValidation(t *testing.T) {
 		Hash:  *txid,
 		Index: 50,
 	}
-	fakeFundingTxIn := wire.NewTxIn(fundingOut, nil, nil)
+	fakeFundingTxIn := wire.NewTxIn(fundingOut, nil)
 
 	// Next we'll the commitment secret for our commitment tx and also the
 	// revocation key that we'll use as well.
 	revokePreimage := testHdSeed.CloneBytes()
-	commitSecret, commitPoint := btcec.PrivKeyFromBytes(btcec.S256(),
-		revokePreimage)
+	commitSecret, commitPoint := secp256k1.PrivKeyFromBytes(revokePreimage)
 
 	// Generate a payment preimage to be used below.
 	paymentPreimage := revokePreimage
@@ -570,11 +561,10 @@ func TestHTLCReceiverSpendValidation(t *testing.T) {
 
 	// We'll also need some tests keys for alice and bob, and metadata of
 	// the HTLC output.
-	aliceKeyPriv, aliceKeyPub := btcec.PrivKeyFromBytes(btcec.S256(),
+	aliceKeyPriv, aliceKeyPub := secp256k1.PrivKeyFromBytes(
 		testWalletPrivKey)
-	bobKeyPriv, bobKeyPub := btcec.PrivKeyFromBytes(btcec.S256(),
-		bobsPrivKey)
-	paymentAmt := btcutil.Amount(1 * 10e8)
+	bobKeyPriv, bobKeyPub := secp256k1.PrivKeyFromBytes(bobsPrivKey)
+	paymentAmt := dcrutil.Amount(1 * 10e8)
 	cltvTimeout := uint32(8)
 
 	aliceLocalKey := TweakPubKey(aliceKeyPub, commitPoint)
@@ -652,12 +642,12 @@ func TestHTLCReceiverSpendValidation(t *testing.T) {
 
 	// TODO(roasbeef): modify valid to check precise script errors?
 	testCases := []struct {
-		witness func() wire.TxWitness
+		witness func() TxWitness
 		valid   bool
 	}{
 		{
 			// HTLC redemption w/ invalid preimage size
-			makeWitnessTestCase(t, func() (wire.TxWitness, error) {
+			makeWitnessTestCase(t, func() (TxWitness, error) {
 				signDesc := &SignDescriptor{
 					PubKey:        bobKeyPub,
 					SingleTweak:   bobCommitTweak,
@@ -677,7 +667,7 @@ func TestHTLCReceiverSpendValidation(t *testing.T) {
 		},
 		{
 			// HTLC redemption w/ valid preimage size
-			makeWitnessTestCase(t, func() (wire.TxWitness, error) {
+			makeWitnessTestCase(t, func() (TxWitness, error) {
 				signDesc := &SignDescriptor{
 					PubKey:        bobKeyPub,
 					SingleTweak:   bobCommitTweak,
@@ -696,7 +686,7 @@ func TestHTLCReceiverSpendValidation(t *testing.T) {
 		},
 		{
 			// revoke w/ sig
-			makeWitnessTestCase(t, func() (wire.TxWitness, error) {
+			makeWitnessTestCase(t, func() (TxWitness, error) {
 				signDesc := &SignDescriptor{
 					PubKey:        aliceKeyPub,
 					DoubleTweak:   commitSecret,
@@ -714,7 +704,7 @@ func TestHTLCReceiverSpendValidation(t *testing.T) {
 		},
 		{
 			// refund w/ invalid lock time
-			makeWitnessTestCase(t, func() (wire.TxWitness, error) {
+			makeWitnessTestCase(t, func() (TxWitness, error) {
 				signDesc := &SignDescriptor{
 					PubKey:        aliceKeyPub,
 					SingleTweak:   aliceCommitTweak,
@@ -732,7 +722,7 @@ func TestHTLCReceiverSpendValidation(t *testing.T) {
 		},
 		{
 			// refund w/ valid lock time
-			makeWitnessTestCase(t, func() (wire.TxWitness, error) {
+			makeWitnessTestCase(t, func() (TxWitness, error) {
 				signDesc := &SignDescriptor{
 					PubKey:        aliceKeyPub,
 					SingleTweak:   aliceCommitTweak,
@@ -793,7 +783,7 @@ func TestSecondLevelHtlcSpends(t *testing.T) {
 	t.Parallel()
 
 	// We'll start be creating a creating a 2BTC HTLC.
-	const htlcAmt = btcutil.Amount(2 * 10e8)
+	const htlcAmt = dcrutil.Amount(2 * 10e8)
 
 	// In all of our scenarios, the CSV timeout to claim a self output will
 	// be 5 blocks.
@@ -801,14 +791,11 @@ func TestSecondLevelHtlcSpends(t *testing.T) {
 
 	// First we'll set up some initial key state for Alice and Bob that
 	// will be used in the scripts we created below.
-	aliceKeyPriv, aliceKeyPub := btcec.PrivKeyFromBytes(btcec.S256(),
-		testWalletPrivKey)
-	bobKeyPriv, bobKeyPub := btcec.PrivKeyFromBytes(btcec.S256(),
-		bobsPrivKey)
+	aliceKeyPriv, aliceKeyPub := secp256k1.PrivKeyFromBytes(testWalletPrivKey)
+	bobKeyPriv, bobKeyPub := secp256k1.PrivKeyFromBytes(bobsPrivKey)
 
 	revokePreimage := testHdSeed.CloneBytes()
-	commitSecret, commitPoint := btcec.PrivKeyFromBytes(
-		btcec.S256(), revokePreimage)
+	commitSecret, commitPoint := secp256k1.PrivKeyFromBytes(revokePreimage)
 
 	// As we're modeling this as Bob sweeping the HTLC on-chain from his
 	// commitment transaction after a period of time, we'll be using a
@@ -826,7 +813,7 @@ func TestSecondLevelHtlcSpends(t *testing.T) {
 		Index: 0,
 	}
 	sweepTx := wire.NewMsgTx(2)
-	sweepTx.AddTxIn(wire.NewTxIn(htlcOutPoint, nil, nil))
+	sweepTx.AddTxIn(wire.NewTxIn(htlcOutPoint, nil))
 	sweepTx.AddTxOut(
 		&wire.TxOut{
 			PkScript: []byte("doesn't matter"),
@@ -870,14 +857,14 @@ func TestSecondLevelHtlcSpends(t *testing.T) {
 	aliceSigner := &mockSigner{aliceKeyPriv}
 
 	testCases := []struct {
-		witness func() wire.TxWitness
+		witness func() TxWitness
 		valid   bool
 	}{
 		{
 			// Sender of the HTLC attempts to activate the
 			// revocation clause, but uses the wrong key (fails to
 			// use the double tweak in this case).
-			makeWitnessTestCase(t, func() (wire.TxWitness, error) {
+			makeWitnessTestCase(t, func() (TxWitness, error) {
 				signDesc := &SignDescriptor{
 					PubKey:        aliceKeyPub,
 					WitnessScript: htlcWitnessScript,
@@ -894,7 +881,7 @@ func TestSecondLevelHtlcSpends(t *testing.T) {
 		},
 		{
 			// Sender of HTLC activates the revocation clause.
-			makeWitnessTestCase(t, func() (wire.TxWitness, error) {
+			makeWitnessTestCase(t, func() (TxWitness, error) {
 				signDesc := &SignDescriptor{
 					PubKey:        aliceKeyPub,
 					DoubleTweak:   commitSecret,
@@ -914,7 +901,7 @@ func TestSecondLevelHtlcSpends(t *testing.T) {
 			// Receiver of the HTLC attempts to sweep, but tries to
 			// do so pre-maturely with a smaller CSV delay (2
 			// blocks instead of 5 blocks).
-			makeWitnessTestCase(t, func() (wire.TxWitness, error) {
+			makeWitnessTestCase(t, func() (TxWitness, error) {
 				signDesc := &SignDescriptor{
 					PubKey:        bobKeyPub,
 					SingleTweak:   commitTweak,
@@ -934,7 +921,7 @@ func TestSecondLevelHtlcSpends(t *testing.T) {
 			// Receiver of the HTLC sweeps with the proper CSV
 			// delay, but uses the wrong key (leaves off the single
 			// tweak).
-			makeWitnessTestCase(t, func() (wire.TxWitness, error) {
+			makeWitnessTestCase(t, func() (TxWitness, error) {
 				signDesc := &SignDescriptor{
 					PubKey:        bobKeyPub,
 					WitnessScript: htlcWitnessScript,
@@ -952,7 +939,7 @@ func TestSecondLevelHtlcSpends(t *testing.T) {
 		{
 			// Receiver of the HTLC sweeps with the proper CSV
 			// delay, and the correct key.
-			makeWitnessTestCase(t, func() (wire.TxWitness, error) {
+			makeWitnessTestCase(t, func() (TxWitness, error) {
 				signDesc := &SignDescriptor{
 					PubKey:        bobKeyPub,
 					SingleTweak:   commitTweak,
@@ -1170,31 +1157,31 @@ func TestSpecificationKeyDerivation(t *testing.T) {
 }
 
 // pubkeyFromHex parses a Bitcoin public key from a hex encoded string.
-func pubkeyFromHex(keyHex string) (*btcec.PublicKey, error) {
+func pubkeyFromHex(keyHex string) (*secp256k1.PublicKey, error) {
 	bytes, err := hex.DecodeString(keyHex)
 	if err != nil {
 		return nil, err
 	}
-	return btcec.ParsePubKey(bytes, btcec.S256())
+	return secp256k1.ParsePubKey(bytes)
 }
 
 // privkeyFromHex parses a Bitcoin private key from a hex encoded string.
-func privkeyFromHex(keyHex string) (*btcec.PrivateKey, error) {
+func privkeyFromHex(keyHex string) (*secp256k1.PrivateKey, error) {
 	bytes, err := hex.DecodeString(keyHex)
 	if err != nil {
 		return nil, err
 	}
-	key, _ := btcec.PrivKeyFromBytes(btcec.S256(), bytes)
+	key, _ := secp256k1.PrivKeyFromBytes(bytes)
 	return key, nil
 
 }
 
 // pubkeyToHex serializes a Bitcoin public key to a hex encoded string.
-func pubkeyToHex(key *btcec.PublicKey) string {
+func pubkeyToHex(key *secp256k1.PublicKey) string {
 	return hex.EncodeToString(key.SerializeCompressed())
 }
 
 // privkeyFromHex serializes a Bitcoin private key to a hex encoded string.
-func privkeyToHex(key *btcec.PrivateKey) string {
+func privkeyToHex(key *secp256k1.PrivateKey) string {
 	return hex.EncodeToString(key.Serialize())
 }

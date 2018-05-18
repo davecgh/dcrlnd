@@ -1,20 +1,21 @@
-package btcwallet
+package dcrwallet
 
 import (
 	"fmt"
 
-	"github.com/lightningnetwork/lnd/lnwallet"
-	"github.com/roasbeef/btcwallet/chain"
+	"github.com/decred/dcrwallet/chain"
+
+	"github.com/decred/dcrlnd/lnwallet"
 )
 
 const (
-	walletType = "btcwallet"
+	walletType = "dcrwallet"
 )
 
-// createNewWallet creates a new instance of BtcWallet given the proper list of
+// createNewWallet creates a new instance of DcrWallet given the proper list of
 // initialization parameters. This function is the factory function required to
 // properly create an instance of the lnwallet.WalletDriver struct for
-// BtcWallet.
+// DcrWallet.
 func createNewWallet(args ...interface{}) (lnwallet.WalletController, error) {
 	if len(args) != 1 {
 		return nil, fmt.Errorf("incorrect number of arguments to .New(...), "+
@@ -23,14 +24,14 @@ func createNewWallet(args ...interface{}) (lnwallet.WalletController, error) {
 
 	config, ok := args[0].(*Config)
 	if !ok {
-		return nil, fmt.Errorf("first argument to btcdnotifier.New is " +
+		return nil, fmt.Errorf("first argument to dcrdnotifier.New is " +
 			"incorrect, expected a *rpcclient.ConnConfig")
 	}
 
 	return New(*config)
 }
 
-// init registers a driver for the BtcWallet concrete implementation of the
+// init registers a driver for the DcrWallet concrete implementation of the
 // lnwallet.WalletController interface.
 func init() {
 	// Register the driver.

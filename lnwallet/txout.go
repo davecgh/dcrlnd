@@ -4,7 +4,7 @@ import (
 	"encoding/binary"
 	"io"
 
-	"github.com/roasbeef/btcd/wire"
+	"github.com/decred/dcrd/wire"
 )
 
 // writeTxOut serializes a wire.TxOut struct into the passed io.Writer stream.

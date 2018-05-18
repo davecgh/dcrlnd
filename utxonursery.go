@@ -10,13 +10,13 @@ import (
 	"sync/atomic"
 
 	"github.com/davecgh/go-spew/spew"
-	"github.com/lightningnetwork/lnd/chainntnfs"
-	"github.com/lightningnetwork/lnd/channeldb"
-	"github.com/lightningnetwork/lnd/lnwallet"
-	"github.com/roasbeef/btcd/blockchain"
-	"github.com/roasbeef/btcd/txscript"
-	"github.com/roasbeef/btcd/wire"
-	"github.com/roasbeef/btcutil"
+	"github.com/decred/dcrd/blockchain"
+	"github.com/decred/dcrd/dcrutil"
+	"github.com/decred/dcrd/txscript"
+	"github.com/decred/dcrd/wire"
+	"github.com/decred/dcrlnd/chainntnfs"
+	"github.com/decred/dcrlnd/channeldb"
+	"github.com/decred/dcrlnd/lnwallet"
 )
 
 //                          SUMMARY OF OUTPUT STATES
@@ -871,7 +871,7 @@ func (u *utxoNursery) sweepCsvSpendableOutputsTxn(txWeight uint64,
 	}
 
 	// Sum up the total value contained in the inputs.
-	var totalSum btcutil.Amount
+	var totalSum dcrutil.Amount
 	for _, o := range inputs {
 		totalSum += o.Amount()
 	}
@@ -1583,7 +1583,7 @@ func (k *kidOutput) Decode(r io.Reader) error {
 	if _, err := r.Read(scratch[:]); err != nil {
 		return err
 	}
-	k.amt = btcutil.Amount(byteOrder.Uint64(scratch[:]))
+	k.amt = dcrutil.Amount(byteOrder.Uint64(scratch[:]))
 
 	if err := readOutpoint(io.LimitReader(r, 40), &k.outpoint); err != nil {
 		return err

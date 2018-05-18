@@ -3,7 +3,7 @@ package lnwire
 import (
 	"testing"
 
-	"github.com/roasbeef/btcutil"
+	"github.com/decred/dcrd/dcrutil"
 )
 
 func TestMilliSatoshiConversion(t *testing.T) {
@@ -12,7 +12,8 @@ func TestMilliSatoshiConversion(t *testing.T) {
 	testCases := []struct {
 		mSatAmount MilliSatoshi
 
-		satAmount btcutil.Amount
+		// TODO(davec): Sat -> Atom
+		satAmount dcrutil.Amount
 		btcAmount float64
 	}{
 		{

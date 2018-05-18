@@ -4,10 +4,10 @@ import (
 	"bytes"
 
 	"github.com/davecgh/go-spew/spew"
+	"github.com/decred/dcrd/chaincfg/chainhash"
+	"github.com/decred/dcrd/dcrec/secp256k1"
+	"github.com/decred/dcrlnd/lnwire"
 	"github.com/go-errors/errors"
-	"github.com/lightningnetwork/lnd/lnwire"
-	"github.com/roasbeef/btcd/btcec"
-	"github.com/roasbeef/btcd/chaincfg/chainhash"
 )
 
 // ValidateChannelAnn validates the channel announcement message and checks
@@ -81,9 +81,7 @@ func ValidateNodeAnn(a *lnwire.NodeAnnouncement) error {
 // ValidateChannelUpdateAnn validates the channel update announcement by
 // checking that the included signature covers he announcement and has been
 // signed by the node's private key.
-func ValidateChannelUpdateAnn(pubKey *btcec.PublicKey,
-	a *lnwire.ChannelUpdate) error {
-
+func ValidateChannelUpdateAnn(pubKey *secp256k1.PublicKey, a *lnwire.ChannelUpdate) error {
 	data, err := a.DataToSign()
 	if err != nil {
 		return errors.Errorf("unable to reconstruct message: %v", err)

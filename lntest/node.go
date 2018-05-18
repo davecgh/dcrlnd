@@ -20,13 +20,13 @@ import (
 	"google.golang.org/grpc/credentials"
 	macaroon "gopkg.in/macaroon.v1"
 
+	"github.com/decred/dcrd/chaincfg"
+	"github.com/decred/dcrd/chaincfg/chainhash"
+	"github.com/decred/dcrd/rpcclient"
+	"github.com/decred/dcrd/wire"
+	"github.com/decred/dcrlnd/lnrpc"
+	"github.com/decred/dcrlnd/macaroons"
 	"github.com/go-errors/errors"
-	"github.com/lightningnetwork/lnd/lnrpc"
-	"github.com/lightningnetwork/lnd/macaroons"
-	"github.com/roasbeef/btcd/chaincfg"
-	"github.com/roasbeef/btcd/chaincfg/chainhash"
-	"github.com/roasbeef/btcd/rpcclient"
-	"github.com/roasbeef/btcd/wire"
 )
 
 var (
@@ -100,7 +100,7 @@ func (cfg nodeConfig) RPCAddr() string {
 }
 
 func (cfg nodeConfig) DBPath() string {
-	return filepath.Join(cfg.DataDir, cfg.NetParams.Name, "bitcoin/channel.db")
+	return filepath.Join(cfg.DataDir, cfg.NetParams.Name, "decred/channel.db")
 }
 
 // genArgs generates a slice of command line arguments from the lightning node
@@ -109,25 +109,23 @@ func (cfg nodeConfig) genArgs() []string {
 	var args []string
 
 	switch cfg.NetParams {
-	case &chaincfg.TestNet3Params:
-		args = append(args, "--bitcoin.testnet")
+	case &chaincfg.TestNet2Params:
+		args = append(args, "--decred.testnet")
 	case &chaincfg.SimNetParams:
-		args = append(args, "--bitcoin.simnet")
-	case &chaincfg.RegressionNetParams:
-		args = append(args, "--bitcoin.regtest")
+		args = append(args, "--decred.simnet")
 	}
 
 	encodedCert := hex.EncodeToString(cfg.RPCConfig.Certificates)
-	args = append(args, "--bitcoin.active")
+	args = append(args, "--decred.active")
 	args = append(args, "--nobootstrap")
 	args = append(args, "--noencryptwallet")
 	args = append(args, "--debuglevel=debug")
-	args = append(args, "--bitcoin.defaultchanconfs=1")
-	args = append(args, "--bitcoin.defaultremotedelay=4")
-	args = append(args, fmt.Sprintf("--btcd.rpchost=%v", cfg.RPCConfig.Host))
-	args = append(args, fmt.Sprintf("--btcd.rpcuser=%v", cfg.RPCConfig.User))
-	args = append(args, fmt.Sprintf("--btcd.rpcpass=%v", cfg.RPCConfig.Pass))
-	args = append(args, fmt.Sprintf("--btcd.rawrpccert=%v", encodedCert))
+	args = append(args, "--decred.defaultchanconfs=1")
+	args = append(args, "--decred.defaultremotedelay=4")
+	args = append(args, fmt.Sprintf("--dcrd.rpchost=%v", cfg.RPCConfig.Host))
+	args = append(args, fmt.Sprintf("--dcrd.rpcuser=%v", cfg.RPCConfig.User))
+	args = append(args, fmt.Sprintf("--dcrd.rpcpass=%v", cfg.RPCConfig.Pass))
+	args = append(args, fmt.Sprintf("--dcrd.rawrpccert=%v", encodedCert))
 	args = append(args, fmt.Sprintf("--rpcport=%v", cfg.RPCPort))
 	args = append(args, fmt.Sprintf("--peerport=%v", cfg.P2PPort))
 	args = append(args, fmt.Sprintf("--logdir=%v", cfg.LogDir))

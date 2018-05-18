@@ -10,15 +10,15 @@ import (
 
 	prand "math/rand"
 
+	"github.com/decred/dcrd/chaincfg/chainhash"
+	"github.com/decred/dcrd/dcrec/secp256k1"
+	"github.com/decred/dcrd/wire"
+	"github.com/decred/dcrlnd/channeldb"
+	//"github.com/decred/dcrlnd/lnwallet" // TODO(davec): Uncomment...
+	"github.com/decred/dcrd/dcrutil"
+	"github.com/decred/dcrlnd/lnwire"
+	"github.com/decred/dcrlnd/routing/chainview"
 	"github.com/go-errors/errors"
-	"github.com/lightningnetwork/lnd/channeldb"
-	"github.com/lightningnetwork/lnd/lnwallet"
-	"github.com/lightningnetwork/lnd/lnwire"
-	"github.com/lightningnetwork/lnd/routing/chainview"
-	"github.com/roasbeef/btcd/btcec"
-	"github.com/roasbeef/btcd/chaincfg/chainhash"
-	"github.com/roasbeef/btcd/wire"
-	"github.com/roasbeef/btcutil"
 )
 
 var (
@@ -35,17 +35,17 @@ var (
 		0x6a, 0x49, 0x18, 0x83, 0x31, 0x98, 0x47, 0x53,
 	}
 
-	priv1, _    = btcec.NewPrivateKey(btcec.S256())
+	priv1, _    = secp256k1.GeneratePrivateKey()
 	bitcoinKey1 = priv1.PubKey()
 
-	priv2, _    = btcec.NewPrivateKey(btcec.S256())
+	priv2, _    = secp256k1.GeneratePrivateKey()
 	bitcoinKey2 = priv2.PubKey()
 )
 
 func createTestNode() (*channeldb.LightningNode, error) {
 	updateTime := prand.Int63()
 
-	priv, err := btcec.NewPrivateKey(btcec.S256())
+	priv, err := secp256k1.GeneratePrivateKey()
 	if err != nil {
 		return nil, errors.Errorf("unable create private key: %v", err)
 	}

@@ -3,10 +3,10 @@ package walletunlocker
 import (
 	"fmt"
 
-	"github.com/lightningnetwork/lnd/lnrpc"
-	"github.com/lightningnetwork/lnd/lnwallet/btcwallet"
-	"github.com/roasbeef/btcd/chaincfg"
-	"github.com/roasbeef/btcwallet/wallet"
+	"github.com/decred/dcrd/chaincfg"
+	"github.com/decred/dcrlnd/lnrpc"
+	//"github.com/decred/dcrlnd/lnwallet/dcrwallet" // TODO(davec): Uncomment
+	"github.com/decred/dcrwallet/wallet"
 	"golang.org/x/net/context"
 	"gopkg.in/macaroon-bakery.v1/bakery"
 )
@@ -53,7 +53,7 @@ func (u *UnlockerService) CreateWallet(ctx context.Context,
 			"at least 8 characters")
 	}
 
-	netDir := btcwallet.NetworkDir(u.chainDir, u.netParams)
+	netDir := dcrwallet.NetworkDir(u.chainDir, u.netParams)
 	loader := wallet.NewLoader(u.netParams, netDir)
 
 	// Check if wallet already exists.
@@ -80,7 +80,7 @@ func (u *UnlockerService) CreateWallet(ctx context.Context,
 func (u *UnlockerService) UnlockWallet(ctx context.Context,
 	in *lnrpc.UnlockWalletRequest) (*lnrpc.UnlockWalletResponse, error) {
 
-	netDir := btcwallet.NetworkDir(u.chainDir, u.netParams)
+	netDir := drcwallet.NetworkDir(u.chainDir, u.netParams)
 	loader := wallet.NewLoader(u.netParams, netDir)
 
 	// Check if wallet already exists.

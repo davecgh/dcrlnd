@@ -2,8 +2,6 @@ package shachain
 
 import (
 	"io"
-
-	"github.com/roasbeef/btcd/chaincfg/chainhash"
 )
 
 // Producer is an interface which serves as an abstraction over the data
@@ -14,7 +12,7 @@ import (
 type Producer interface {
 	// AtIndex produces a secret by evaluating using the initial seed and a
 	// particular index.
-	AtIndex(uint64) (*chainhash.Hash, error)
+	AtIndex(uint64) (*ShaHash, error)
 
 	// Encode writes a binary serialization of the Producer implementation
 	// to the passed io.Writer.
@@ -40,7 +38,7 @@ type RevocationProducer struct {
 var _ Producer = (*RevocationProducer)(nil)
 
 // NewRevocationProducer creates new instance of shachain producer.
-func NewRevocationProducer(root chainhash.Hash) *RevocationProducer {
+func NewRevocationProducer(root ShaHash) *RevocationProducer {
 	return &RevocationProducer{
 		root: &element{
 			index: rootIndex,
@@ -52,7 +50,7 @@ func NewRevocationProducer(root chainhash.Hash) *RevocationProducer {
 // RevocationProducer encoded in the passed byte slice, returning a fully
 // initialized instance of a RevocationProducer.
 func NewRevocationProducerFromBytes(data []byte) (*RevocationProducer, error) {
-	root, err := chainhash.NewHash(data)
+	root, err := NewHash(data)
 	if err != nil {
 		return nil, err
 	}
@@ -69,7 +67,7 @@ func NewRevocationProducerFromBytes(data []byte) (*RevocationProducer, error) {
 // particular index.
 //
 // NOTE: Part of the Producer interface.
-func (p *RevocationProducer) AtIndex(v uint64) (*chainhash.Hash, error) {
+func (p *RevocationProducer) AtIndex(v uint64) (*ShaHash, error) {
 	ind := newIndex(v)
 
 	element, err := p.root.derive(ind)

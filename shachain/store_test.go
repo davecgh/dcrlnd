@@ -2,9 +2,8 @@ package shachain
 
 import (
 	"bytes"
+	"crypto/sha256"
 	"testing"
-
-	"github.com/roasbeef/btcd/chaincfg/chainhash"
 )
 
 type testInsert struct {
@@ -411,7 +410,7 @@ func TestSpecificationShaChainInsert(t *testing.T) {
 		receiver := NewRevocationStore()
 
 		for _, insert := range test.inserts {
-			secret, err := hashFromString(insert.secret)
+			secret, err := NewHashFromStr(insert.secret)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -439,7 +438,7 @@ func TestSpecificationShaChainInsert(t *testing.T) {
 func TestShaChainStore(t *testing.T) {
 	t.Parallel()
 
-	seed := chainhash.DoubleHashH([]byte("shachaintest"))
+	seed := ShaHash(sha256.Sum256([]byte("shachaintest")))
 
 	sender := NewRevocationProducer(seed)
 	receiver := NewRevocationStore()

@@ -3,12 +3,12 @@ package lnwallet_test
 import (
 	"testing"
 
-	"github.com/lightningnetwork/lnd/lnwallet"
-	"github.com/roasbeef/btcd/blockchain"
-	"github.com/roasbeef/btcd/chaincfg"
-	"github.com/roasbeef/btcd/txscript"
-	"github.com/roasbeef/btcd/wire"
-	"github.com/roasbeef/btcutil"
+	"github.com/decred/dcrd/blockchain"
+	"github.com/decred/dcrd/chaincfg"
+	"github.com/decred/dcrd/dcrutil"
+	"github.com/decred/dcrd/txscript"
+	"github.com/decred/dcrd/wire"
+	"github.com/decred/dcrlnd/lnwallet"
 )
 
 // TestTxWeightEstimator tests that transaction weight estimates are calculated
@@ -17,7 +17,7 @@ import (
 func TestTxWeightEstimator(t *testing.T) {
 	netParams := &chaincfg.MainNetParams
 
-	p2pkhAddr, err := btcutil.NewAddressPubKeyHash(
+	p2pkhAddr, err := dcrutil.NewAddressPubKeyHash(
 		make([]byte, 20), netParams)
 	if err != nil {
 		t.Fatalf("Failed to generate address: %v", err)
@@ -27,7 +27,7 @@ func TestTxWeightEstimator(t *testing.T) {
 		t.Fatalf("Failed to generate scriptPubKey: %v", err)
 	}
 
-	p2wkhAddr, err := btcutil.NewAddressWitnessPubKeyHash(
+	p2wkhAddr, err := dcrutil.NewAddressWitnessPubKeyHash(
 		make([]byte, 20), netParams)
 	if err != nil {
 		t.Fatalf("Failed to generate address: %v", err)
@@ -37,7 +37,7 @@ func TestTxWeightEstimator(t *testing.T) {
 		t.Fatalf("Failed to generate scriptPubKey: %v", err)
 	}
 
-	p2wshAddr, err := btcutil.NewAddressWitnessScriptHash(
+	p2wshAddr, err := dcrutil.NewAddressWitnessScriptHash(
 		make([]byte, 32), netParams)
 	if err != nil {
 		t.Fatalf("Failed to generate address: %v", err)
@@ -47,7 +47,7 @@ func TestTxWeightEstimator(t *testing.T) {
 		t.Fatalf("Failed to generate scriptPubKey: %v", err)
 	}
 
-	p2shAddr, err := btcutil.NewAddressScriptHash([]byte{0}, netParams)
+	p2shAddr, err := dcrutil.NewAddressScriptHash([]byte{0}, netParams)
 	if err != nil {
 		t.Fatalf("Failed to generate address: %v", err)
 	}
@@ -127,14 +127,14 @@ func TestTxWeightEstimator(t *testing.T) {
 
 			signature := make([]byte, 73)
 			compressedPubKey := make([]byte, 33)
-			witness := wire.TxWitness{signature, compressedPubKey}
+			witness := TxWitness{signature, compressedPubKey}
 			tx.AddTxIn(&wire.TxIn{Witness: witness})
 		}
 		for j := 0; j < test.numP2WSHInputs; j++ {
 			weightEstimate.AddWitnessInput(42)
 
 			witnessScript := make([]byte, 40)
-			witness := wire.TxWitness{witnessScript}
+			witness := TxWitness{witnessScript}
 			tx.AddTxIn(&wire.TxIn{Witness: witness})
 		}
 		for j := 0; j < test.numNestedP2WKHInputs; j++ {
@@ -142,7 +142,7 @@ func TestTxWeightEstimator(t *testing.T) {
 
 			signature := make([]byte, 73)
 			compressedPubKey := make([]byte, 33)
-			witness := wire.TxWitness{signature, compressedPubKey}
+			witness := TxWitness{signature, compressedPubKey}
 			scriptSig, err := txscript.NewScriptBuilder().AddData(p2wkhScript).
 				Script()
 			if err != nil {
@@ -155,7 +155,7 @@ func TestTxWeightEstimator(t *testing.T) {
 			weightEstimate.AddNestedP2WSHInput(42)
 
 			witnessScript := make([]byte, 40)
-			witness := wire.TxWitness{witnessScript}
+			witness := TxWitness{witnessScript}
 			scriptSig, err := txscript.NewScriptBuilder().AddData(p2wshScript).
 				Script()
 			if err != nil {
@@ -181,7 +181,7 @@ func TestTxWeightEstimator(t *testing.T) {
 			tx.AddTxOut(&wire.TxOut{PkScript: p2shScript})
 		}
 
-		expectedWeight := blockchain.GetTransactionWeight(btcutil.NewTx(tx))
+		expectedWeight := blockchain.GetTransactionWeight(dcrutil.NewTx(tx))
 		if weightEstimate.Weight() != int(expectedWeight) {
 			t.Errorf("Case %d: Got wrong weight: expected %d, got %d",
 				i, expectedWeight, weightEstimate.Weight())

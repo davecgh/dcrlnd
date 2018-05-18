@@ -4,19 +4,16 @@ go:
   - 1.9.2
 sudo: false
 install:
-  - add-apt-repository -y ppa:bitcoin/bitcoin
-  - apt-update
-  - apt-get -y install bitcoind
   - GLIDE_TAG=v0.12.3
   - GLIDE_DOWNLOAD="https://github.com/Masterminds/glide/releases/download/$GLIDE_TAG/glide-$GLIDE_TAG-linux-amd64.tar.gz"
   - curl -L $GLIDE_DOWNLOAD | tar -xvz
   - export PATH=$PATH:$PWD/linux-amd64/
-  - BTCD_VERSION=$(cat glide.yaml | grep -A1 btcd | tail -n1 | awk '{ print $2}')
-  - mkdir -p $GOPATH/src/github.com/roasbeef/
-  - pushd $GOPATH/src/github.com/roasbeef/
-  - git clone https://github.com/roasbeef/btcd
-  - pushd btcd
-  - git checkout $BTCD_VERSION
+  - DCRD_VERSION=$(cat glide.yaml | grep -A1 dcrd | tail -n1 | awk '{ print $2}')
+  - mkdir -p $GOPATH/src/github.com/decred/
+  - pushd $GOPATH/src/github.com/decred/
+  - git clone https://github.com/decred/dcrd
+  - pushd dcrd
+  - git checkout $DCRD_VERSION
   - glide install
   - go install . ./cmd/...
   - popd

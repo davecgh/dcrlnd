@@ -10,14 +10,14 @@ import (
 	"crypto/sha256"
 
 	"github.com/davecgh/go-spew/spew"
-	"github.com/roasbeef/btcd/btcec"
+	"github.com/decred/dcrd/dcrec/secp256k1"
 
+	"github.com/decred/dcrd/dcrutil"
+	"github.com/decred/dcrd/wire"
+	"github.com/decred/dcrlnd/lnrpc"
+	"github.com/decred/dcrlnd/lnwallet"
+	"github.com/decred/dcrlnd/lnwire"
 	"github.com/go-errors/errors"
-	"github.com/lightningnetwork/lnd/lnrpc"
-	"github.com/lightningnetwork/lnd/lnwallet"
-	"github.com/lightningnetwork/lnd/lnwire"
-	"github.com/roasbeef/btcd/wire"
-	"github.com/roasbeef/btcutil"
 )
 
 var (
@@ -80,7 +80,7 @@ type ChanClose struct {
 	// This value is only utilized if the closure type is CloseRegular.
 	// This will be the starting offered fee when the fee negotiation
 	// process for the cooperative closure transaction kicks off.
-	TargetFeePerKw btcutil.Amount
+	TargetFeePerKw dcrutil.Amount
 
 	// Updates is used by request creator to receive the notifications about
 	// execution of the close channel request.
@@ -96,7 +96,7 @@ type Config struct {
 	// SelfKey is the key of the backing Lightning node. This key is used
 	// to properly craft failure messages, such that the Layer 3 router can
 	// properly route around link./vertex failures.
-	SelfKey *btcec.PublicKey
+	SelfKey *secp256k1.PublicKey
 
 	// LocalChannelClose kicks-off the workflow to execute a cooperative or
 	// forced unilateral closure of the channel initiated by a local
@@ -658,7 +658,7 @@ func (s *Switch) handlePacketForward(packet *htlcPacket) error {
 // a starting point for close negotiation.
 func (s *Switch) CloseLink(chanPoint *wire.OutPoint,
 	closeType ChannelCloseType,
-	targetFeePerKw btcutil.Amount) (chan *lnrpc.CloseStatusUpdate, chan error) {
+	targetFeePerKw dcrutil.Amount) (chan *lnrpc.CloseStatusUpdate, chan error) {
 
 	// TODO(roasbeef) abstract out the close updates.
 	updateChan := make(chan *lnrpc.CloseStatusUpdate, 2)
@@ -710,8 +710,8 @@ func (s *Switch) htlcForwarder() {
 	// TODO(roasbeef): cleared vs settled distinction
 	var (
 		totalNumUpdates uint64
-		totalSatSent    btcutil.Amount
-		totalSatRecv    btcutil.Amount
+		totalSatSent    dcrutil.Amount
+		totalSatRecv    dcrutil.Amount
 	)
 	logTicker := time.NewTicker(10 * time.Second)
 	defer logTicker.Stop()
@@ -754,8 +754,8 @@ func (s *Switch) htlcForwarder() {
 
 			var (
 				newNumUpdates uint64
-				newSatSent    btcutil.Amount
-				newSatRecv    btcutil.Amount
+				newSatSent    dcrutil.Amount
+				newSatRecv    dcrutil.Amount
 			)
 
 			// Next, we'll run through all the registered links and
@@ -771,8 +771,8 @@ func (s *Switch) htlcForwarder() {
 
 			var (
 				diffNumUpdates uint64
-				diffSatSent    btcutil.Amount
-				diffSatRecv    btcutil.Amount
+				diffSatSent    dcrutil.Amount
+				diffSatRecv    dcrutil.Amount
 			)
 
 			// If this is the first time we're computing these

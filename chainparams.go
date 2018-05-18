@@ -1,11 +1,11 @@
 package main
 
 import (
+	"github.com/decred/dcrd/chaincfg"
+	bitcoinCfg "github.com/decred/dcrd/chaincfg"
+	"github.com/decred/dcrd/chaincfg/chainhash"
+	"github.com/decred/dcrd/wire"
 	litecoinCfg "github.com/ltcsuite/ltcd/chaincfg"
-	"github.com/roasbeef/btcd/chaincfg"
-	bitcoinCfg "github.com/roasbeef/btcd/chaincfg"
-	"github.com/roasbeef/btcd/chaincfg/chainhash"
-	"github.com/roasbeef/btcd/wire"
 )
 
 // activeNetParams is a pointer to the parameters specific to the currently

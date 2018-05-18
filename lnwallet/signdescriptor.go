@@ -5,9 +5,9 @@ import (
 	"errors"
 	"io"
 
-	"github.com/roasbeef/btcd/btcec"
-	"github.com/roasbeef/btcd/txscript"
-	"github.com/roasbeef/btcd/wire"
+	"github.com/decred/dcrd/dcrec/secp256k1"
+	"github.com/decred/dcrd/txscript"
+	"github.com/decred/dcrd/wire"
 )
 
 var (
@@ -23,7 +23,7 @@ type SignDescriptor struct {
 	// Pubkey is the public key to which the signature should be generated
 	// over. The Signer should then generate a signature with the private
 	// key corresponding to this public key.
-	PubKey *btcec.PublicKey
+	PubKey *secp256k1.PublicKey
 
 	// SingleTweak is a scalar value that will be added to the private key
 	// corresponding to the above public key to obtain the private key to
@@ -51,10 +51,10 @@ type SignDescriptor struct {
 	// NOTE: If this value is nil, then the input can be signed using only
 	// the above public key. Either a SingleTweak should be set or a
 	// DoubleTweak, not both.
-	DoubleTweak *btcec.PrivateKey
+	DoubleTweak *secp256k1.PrivateKey
 
 	// WitnessScript is the full script required to properly redeem the
-	// output. This field will only be populated if a p2wsh or a p2sh
+	// output. This field will only be populated if a p2wsh or a p2sh // TODO(davec): p2wsh....
 	// output is being signed.
 	WitnessScript []byte
 
@@ -67,9 +67,10 @@ type SignDescriptor struct {
 	// generating the final sighash, and signature.
 	HashType txscript.SigHashType
 
+	// TODO(davec): Fix...
 	// SigHashes is the pre-computed sighash midstate to be used when
 	// generating the final sighash for signing.
-	SigHashes *txscript.TxSigHashes
+	//SigHashes *txscript.TxSigHashes
 
 	// InputIndex is the target input within the transaction that should be
 	// signed.
@@ -124,7 +125,7 @@ func ReadSignDescriptor(r io.Reader, sd *SignDescriptor) error {
 	if err != nil {
 		return err
 	}
-	sd.PubKey, err = btcec.ParsePubKey(pubKeyBytes, btcec.S256())
+	sd.PubKey, err = secp256k1.ParsePubKey(pubKeyBytes)
 	if err != nil {
 		return err
 	}
@@ -158,7 +159,7 @@ func ReadSignDescriptor(r io.Reader, sd *SignDescriptor) error {
 	if len(doubleTweakBytes) == 0 {
 		sd.DoubleTweak = nil
 	} else {
-		sd.DoubleTweak, _ = btcec.PrivKeyFromBytes(btcec.S256(), doubleTweakBytes)
+		sd.DoubleTweak, _ = secp256k1.PrivKeyFromBytes(doubleTweakBytes)
 	}
 
 	// Only one tweak should ever be set, fail if both are present.

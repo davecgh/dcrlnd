@@ -5,12 +5,12 @@ import (
 	"net"
 	"sync"
 
-	"github.com/lightningnetwork/lnd/channeldb"
-	"github.com/lightningnetwork/lnd/lnwire"
-	"github.com/roasbeef/btcd/btcec"
-	"github.com/roasbeef/btcd/chaincfg/chainhash"
-	"github.com/roasbeef/btcd/wire"
-	"github.com/roasbeef/btcutil"
+	"github.com/decred/dcrd/chaincfg/chainhash"
+	"github.com/decred/dcrd/dcrec/secp256k1"
+	"github.com/decred/dcrd/dcrutil"
+	"github.com/decred/dcrd/wire"
+	"github.com/decred/dcrlnd/channeldb"
+	"github.com/decred/dcrlnd/lnwire"
 )
 
 // ChannelContribution is the primary constituent of the funding workflow
@@ -22,7 +22,7 @@ import (
 type ChannelContribution struct {
 	// FundingOutpoint is the amount of funds contributed to the funding
 	// transaction.
-	FundingAmount btcutil.Amount
+	FundingAmount dcrutil.Amount
 
 	// Inputs to the funding transaction.
 	Inputs []*wire.TxIn
@@ -35,7 +35,7 @@ type ChannelContribution struct {
 	// FirstCommitmentPoint is the first commitment point that will be used
 	// to create the revocation key in the first commitment transaction we
 	// send to the remote party.
-	FirstCommitmentPoint *btcec.PublicKey
+	FirstCommitmentPoint *secp256k1.PublicKey
 
 	// ChannelConfig is the concrete contribution that this node is
 	// offering to the channel. This includes all the various constraints
@@ -135,7 +135,7 @@ type ChannelReservation struct {
 // used only internally by lnwallet. In order to concurrent safety, the
 // creation of all channel reservations should be carried out via the
 // lnwallet.InitChannelReservation interface.
-func NewChannelReservation(capacity, fundingAmt, commitFeePerKw btcutil.Amount,
+func NewChannelReservation(capacity, fundingAmt, commitFeePerKw dcrutil.Amount,
 	wallet *LightningWallet, id uint64, pushMSat lnwire.MilliSatoshi,
 	chainHash *chainhash.Hash,
 	flags lnwire.FundingFlag) (*ChannelReservation, error) {
@@ -146,7 +146,7 @@ func NewChannelReservation(capacity, fundingAmt, commitFeePerKw btcutil.Amount,
 		initiator    bool
 	)
 
-	commitFee := btcutil.Amount(
+	commitFee := dcrutil.Amount(
 		(int64(commitFeePerKw) * CommitWeight) / 1000,
 	)
 
@@ -277,7 +277,7 @@ func (r *ChannelReservation) RegisterMinHTLC(minHTLC lnwire.MilliSatoshi) {
 // will also attempt to verify the constraints for sanity, returning an error
 // if the parameters are seemed unsound.
 func (r *ChannelReservation) CommitConstraints(csvDelay, maxHtlcs uint16,
-	maxValueInFlight lnwire.MilliSatoshi, chanReserve btcutil.Amount) error {
+	maxValueInFlight lnwire.MilliSatoshi, chanReserve dcrutil.Amount) error {
 
 	r.Lock()
 	defer r.Unlock()
@@ -295,7 +295,7 @@ func (r *ChannelReservation) CommitConstraints(csvDelay, maxHtlcs uint16,
 // current state. In order to ensure that we only accept sane states, we'll
 // specify: the required reserve the remote party must uphold, the max value in
 // flight, and the maximum number of HTLC's that can propose in a state.
-func (r *ChannelReservation) RemoteChanConstraints() (btcutil.Amount, lnwire.MilliSatoshi, uint16) {
+func (r *ChannelReservation) RemoteChanConstraints() (dcrutil.Amount, lnwire.MilliSatoshi, uint16) {
 	chanCapacity := r.partialState.Capacity
 
 	// TODO(roasbeef): move csv delay calculation into func?

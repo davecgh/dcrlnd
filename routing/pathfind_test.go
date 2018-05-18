@@ -14,12 +14,12 @@ import (
 	"testing"
 	"time"
 
-	"github.com/lightningnetwork/lnd/channeldb"
-	"github.com/lightningnetwork/lnd/lnwire"
-	"github.com/roasbeef/btcd/btcec"
-	"github.com/roasbeef/btcd/chaincfg/chainhash"
-	"github.com/roasbeef/btcd/wire"
-	"github.com/roasbeef/btcutil"
+	"github.com/decred/dcrd/chaincfg/chainhash"
+	"github.com/decred/dcrd/dcrec/secp256k1"
+	"github.com/decred/dcrd/dcrutil"
+	"github.com/decred/dcrd/wire"
+	"github.com/decred/dcrlnd/channeldb"
+	"github.com/decred/dcrlnd/lnwire"
 
 	prand "math/rand"
 )
@@ -45,7 +45,7 @@ const (
 var (
 	randSource = prand.NewSource(time.Now().Unix())
 	randInts   = prand.New(randSource)
-	testSig    = &btcec.Signature{
+	testSig    = &secp256k1.Signature{
 		R: new(big.Int),
 		S: new(big.Int),
 	}
@@ -122,7 +122,7 @@ func makeTestGraph() (*channeldb.ChannelGraph, func(), error) {
 // aliasMap is a map from a node's alias to its public key. This type is
 // provided in order to allow easily look up from the human rememberable alias
 // to an exact node's public key.
-type aliasMap map[string]*btcec.PublicKey
+type aliasMap map[string]*secp256k1.PublicKey
 
 // parseTestGraph returns a fully populated ChannelGraph given a path to a JSON
 // file which encodes a test graph.
@@ -156,7 +156,7 @@ func parseTestGraph(path string) (*channeldb.ChannelGraph, func(), aliasMap, err
 		return nil, nil, nil, err
 	}
 
-	aliasMap := make(map[string]*btcec.PublicKey)
+	aliasMap := make(map[string]*secp256k1.PublicKey)
 	var source *channeldb.LightningNode
 
 	// First we insert all the nodes within the graph as vertexes.
@@ -165,7 +165,7 @@ func parseTestGraph(path string) (*channeldb.ChannelGraph, func(), aliasMap, err
 		if err != nil {
 			return nil, nil, nil, err
 		}
-		pub, err := btcec.ParsePubKey(pubBytes, btcec.S256())
+		pub, err := secp256k1.ParsePubKey(pubBytes)
 		if err != nil {
 			return nil, nil, nil, err
 		}
@@ -228,7 +228,7 @@ func parseTestGraph(path string) (*channeldb.ChannelGraph, func(), aliasMap, err
 		if err != nil {
 			return nil, nil, nil, err
 		}
-		node1Pub, err := btcec.ParsePubKey(node1Bytes, btcec.S256())
+		node1Pub, err := secp256k1.ParsePubKey(node1Bytes)
 		if err != nil {
 			return nil, nil, nil, err
 		}
@@ -237,7 +237,7 @@ func parseTestGraph(path string) (*channeldb.ChannelGraph, func(), aliasMap, err
 		if err != nil {
 			return nil, nil, nil, err
 		}
-		node2Pub, err := btcec.ParsePubKey(node2Bytes, btcec.S256())
+		node2Pub, err := secp256k1.ParsePubKey(node2Bytes)
 		if err != nil {
 			return nil, nil, nil, err
 		}
@@ -262,7 +262,7 @@ func parseTestGraph(path string) (*channeldb.ChannelGraph, func(), aliasMap, err
 			BitcoinKey2:  node2Pub,
 			AuthProof:    &testAuthProof,
 			ChannelPoint: fundingPoint,
-			Capacity:     btcutil.Amount(edge.Capacity),
+			Capacity:     dcrutil.Amount(edge.Capacity),
 		}
 		err = graph.AddChannelEdge(&edgeInfo)
 		if err != nil && err != channeldb.ErrEdgeAlreadyExist {
@@ -613,7 +613,7 @@ func TestPathNotAvailable(t *testing.T) {
 	if err != nil {
 		t.Fatalf("unable to parse bytes: %v", err)
 	}
-	unknownNode, err := btcec.ParsePubKey(unknownNodeBytes, btcec.S256())
+	unknownNode, err := secp256k1.ParsePubKey(unknownNodeBytes)
 	if err != nil {
 		t.Fatalf("unable to parse pubkey: %v", err)
 	}
@@ -651,7 +651,7 @@ func TestPathInsufficientCapacity(t *testing.T) {
 	// though we have a 2-hop link.
 	target := aliases["sophon"]
 
-	const payAmt = btcutil.SatoshiPerBitcoin
+	const payAmt = dcrutil.SatoshiPerBitcoin
 	_, err = findPath(nil, graph, sourceNode, target, ignoredVertexes,
 		ignoredEdges, payAmt)
 	if !IsError(err, ErrNoPathFound) {

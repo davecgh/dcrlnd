@@ -9,12 +9,12 @@ import (
 	"sync"
 
 	"github.com/boltdb/bolt"
-	"github.com/lightningnetwork/lnd/lnwire"
-	"github.com/lightningnetwork/lnd/shachain"
-	"github.com/roasbeef/btcd/btcec"
-	"github.com/roasbeef/btcd/chaincfg/chainhash"
-	"github.com/roasbeef/btcd/wire"
-	"github.com/roasbeef/btcutil"
+	"github.com/decred/dcrd/chaincfg/chainhash"
+	"github.com/decred/dcrd/dcrec/secp256k1"
+	"github.com/decred/dcrd/dcrutil"
+	"github.com/decred/dcrd/wire"
+	"github.com/decred/dcrlnd/lnwire"
+	"github.com/decred/dcrlnd/shachain"
 )
 
 var (
@@ -116,10 +116,10 @@ const (
 // constraints is static for the duration of the channel, meaning the channel
 // must be teared down for them to change.
 type ChannelConstraints struct {
-	// DustLimit is the threshold (in satoshis) below which any outputs
+	// DustLimit is the threhsold (in atoms) below which any outputs
 	// should be trimmed. When an output is trimmed, it isn't materialized
 	// as an actual output, but is instead burned to miner's fees.
-	DustLimit btcutil.Amount
+	DustLimit dcrutil.Amount
 
 	// MaxPendingAmount is the maximum pending HTLC value that can be
 	// present within the channel at a particular time. This value is set
@@ -131,7 +131,7 @@ type ChannelConstraints struct {
 	// this node CANNOT dip below the reservation amount. This acts as a
 	// defense against costless attacks when either side no longer has any
 	// skin in the game.
-	ChanReserve btcutil.Amount
+	ChanReserve dcrutil.Amount
 
 	// MinHTLC is the minimum HTLC accepted for a direction of the channel.
 	// If any HTLC's below this amount are offered, then the HTLC will be
@@ -169,33 +169,33 @@ type ChannelConfig struct {
 
 	// MultiSigKey is the key to be used within the 2-of-2 output script
 	// for the owner of this channel config.
-	MultiSigKey *btcec.PublicKey
+	MultiSigKey *secp256k1.PublicKey
 
 	// RevocationBasePoint is the base public key to be used when deriving
 	// revocation keys for the remote node's commitment transaction. This
 	// will be combined along with a per commitment secret to derive a
 	// unique revocation key for each state.
-	RevocationBasePoint *btcec.PublicKey
+	RevocationBasePoint *secp256k1.PublicKey
 
 	// PaymentBasePoint is the base public key to be used when deriving
 	// the key used within the non-delayed pay-to-self output on the
 	// commitment transaction for a node. This will be combined with a
 	// tweak derived from the per-commitment point to ensure unique keys
 	// for each commitment transaction.
-	PaymentBasePoint *btcec.PublicKey
+	PaymentBasePoint *secp256k1.PublicKey
 
 	// DelayBasePoint is the base public key to be used when deriving the
 	// key used within the delayed pay-to-self output on the commitment
 	// transaction for a node. This will be combined with a tweak derived
 	// from the per-commitment point to ensure unique keys for each
 	// commitment transaction.
-	DelayBasePoint *btcec.PublicKey
+	DelayBasePoint *secp256k1.PublicKey
 
 	// HtlcBasePoint is the base public key to be used when deriving the
 	// local HTLC key. The derived key (combined with the tweak derived
 	// from the per-commitment point) is used within the "to self" clause
 	// within any HTLC output scripts.
-	HtlcBasePoint *btcec.PublicKey
+	HtlcBasePoint *secp256k1.PublicKey
 }
 
 // ChannelCommitment is a snapshot of the commitment state at a particular
@@ -242,13 +242,13 @@ type ChannelCommitment struct {
 	// with the channel in order to allow the fee amount to be removed and
 	// recalculated with each channel state update, including updates that
 	// happen after a system restart.
-	CommitFee btcutil.Amount
+	CommitFee dcrutil.Amount
 
-	// FeePerKw is the min satoshis/kilo-weight that should be paid within
+	// FeePerKw is the min atoms/kilo-weight that should be paid within
 	// the commitment transaction for the entire duration of the channel's
 	// lifetime. This field may be updated during normal operation of the
 	// channel as on-chain conditions change.
-	FeePerKw btcutil.Amount
+	FeePerKw dcrutil.Amount
 
 	// CommitTx is the latest version of the commitment state, broadcast
 	// able by us.
@@ -327,10 +327,10 @@ type OpenChannel struct {
 
 	// IdentityPub is the identity public key of the remote node this
 	// channel has been established with.
-	IdentityPub *btcec.PublicKey
+	IdentityPub *secp256k1.PublicKey
 
 	// Capacity is the total capacity of this channel.
-	Capacity btcutil.Amount
+	Capacity dcrutil.Amount
 
 	// TotalMSatSent is the total number of milli-satoshis we've sent
 	// within this channel.
@@ -362,13 +362,13 @@ type OpenChannel struct {
 	// commitment transaction. However, since this the derived public key,
 	// we don't yet have the private key so we aren't yet able to verify
 	// that it's actually in the hash chain.
-	RemoteCurrentRevocation *btcec.PublicKey
+	RemoteCurrentRevocation *secp256k1.PublicKey
 
 	// RemoteNextRevocation is the revocation key to be used for the *next*
 	// commitment transaction we create for the local node. Within the
 	// specification, this value is referred to as the
 	// per-commitment-point.
-	RemoteNextRevocation *btcec.PublicKey
+	RemoteNextRevocation *secp256k1.PublicKey
 
 	// RevocationProducer is used to generate the revocation in such a way
 	// that remote side might store it efficiently and have the ability to
@@ -402,7 +402,7 @@ func (c *OpenChannel) FullSync() error {
 // updateChanBucket is a helper function that returns a writeable bucket that a
 // channel's data resides in given: the public key for the node, the outpoint,
 // and the chainhash that the channel resides on.
-func updateChanBucket(tx *bolt.Tx, nodeKey *btcec.PublicKey,
+func updateChanBucket(tx *bolt.Tx, nodeKey *secp256k1.PublicKey,
 	outPoint *wire.OutPoint, chainHash chainhash.Hash) (*bolt.Bucket, error) {
 
 	// First fetch the top level bucket which stores all data related to
@@ -448,7 +448,7 @@ func updateChanBucket(tx *bolt.Tx, nodeKey *btcec.PublicKey,
 // readChanBucket is a helper function that returns a readable bucket that a
 // channel's data resides in given: the public key for the node, the outpoint,
 // and the chainhash that the channel resides on.
-func readChanBucket(tx *bolt.Tx, nodeKey *btcec.PublicKey,
+func readChanBucket(tx *bolt.Tx, nodeKey *secp256k1.PublicKey,
 	outPoint *wire.OutPoint, chainHash chainhash.Hash) (*bolt.Bucket, error) {
 
 	// First fetch the top level bucket which stores all data related to
@@ -976,7 +976,7 @@ func (c *OpenChannel) RemoteCommitChainTip() (*CommitDiff, error) {
 //
 // NOTE: If this method isn't called, then the target channel won't be able to
 // propose new states for the commitment state of the remote party.
-func (c *OpenChannel) InsertNextRevocation(revKey *btcec.PublicKey) error {
+func (c *OpenChannel) InsertNextRevocation(revKey *secp256k1.PublicKey) error {
 	c.Lock()
 	defer c.Unlock()
 
@@ -1248,10 +1248,10 @@ type ChannelCloseSummary struct {
 
 	// RemotePub is the public key of the remote peer that we formerly had
 	// a channel with.
-	RemotePub *btcec.PublicKey
+	RemotePub *secp256k1.PublicKey
 
 	// Capacity was the total capacity of the channel.
-	Capacity btcutil.Amount
+	Capacity dcrutil.Amount
 
 	// CloseHeight is the height at which the funding transaction was spent.
 	CloseHeight uint32
@@ -1259,7 +1259,7 @@ type ChannelCloseSummary struct {
 	// SettledBalance is our total balance settled balance at the time of
 	// channel closure. This _does not_ include the sum of any outputs that
 	// have been time-locked as a result of the unilateral channel closure.
-	SettledBalance btcutil.Amount
+	SettledBalance dcrutil.Amount
 
 	// TimeLockedBalance is the sum of all the time-locked outputs at the
 	// time of channel closure. If we triggered the force closure of this
@@ -1267,7 +1267,7 @@ type ChannelCloseSummary struct {
 	// above the dust limit. If we were on the receiving side of a channel
 	// force closure, then this value will be non-zero if we had any
 	// outstanding outgoing HTLC's at the time of channel closure.
-	TimeLockedBalance btcutil.Amount
+	TimeLockedBalance dcrutil.Amount
 
 	// CloseType details exactly _how_ the channel was closed. Three
 	// closure types are possible: cooperative, force, and breach.
@@ -1363,7 +1363,7 @@ func (c *OpenChannel) CloseChannel(summary *ChannelCloseSummary) error {
 type ChannelSnapshot struct {
 	// RemoteIdentity is the identity public key of the remote node that we
 	// are maintaining the open channel with.
-	RemoteIdentity btcec.PublicKey
+	RemoteIdentity secp256k1.PublicKey
 
 	// ChanPoint is the outpoint that created the channel. This output is
 	// found within the funding transaction and uniquely identified the
@@ -1375,7 +1375,7 @@ type ChannelSnapshot struct {
 	ChainHash chainhash.Hash
 
 	// Capacity is the total capacity of the channel.
-	Capacity btcutil.Amount
+	Capacity dcrutil.Amount
 
 	// TotalMSatSent is the total number of milli-satoshis we've sent
 	// within this channel.

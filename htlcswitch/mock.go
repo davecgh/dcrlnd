@@ -12,27 +12,26 @@ import (
 
 	"bytes"
 
-	"github.com/btcsuite/fastsha256"
+	"github.com/decred/dcrd/chaincfg/chainhash"
+	"github.com/decred/dcrd/dcrec/secp256k1"
+	"github.com/decred/dcrd/dcrutil"
+	"github.com/decred/dcrd/txscript"
+	"github.com/decred/dcrd/wire"
+	"github.com/decred/dcrlnd/chainntnfs"
+	"github.com/decred/dcrlnd/channeldb"
+	"github.com/decred/dcrlnd/lnwallet"
+	"github.com/decred/dcrlnd/lnwire"
 	"github.com/go-errors/errors"
-	"github.com/lightningnetwork/lnd/chainntnfs"
-	"github.com/lightningnetwork/lnd/channeldb"
-	"github.com/lightningnetwork/lnd/lnwallet"
-	"github.com/lightningnetwork/lnd/lnwire"
-	"github.com/roasbeef/btcd/btcec"
-	"github.com/roasbeef/btcd/chaincfg/chainhash"
-	"github.com/roasbeef/btcd/txscript"
-	"github.com/roasbeef/btcd/wire"
-	"github.com/roasbeef/btcutil"
 )
 
 type mockFeeEstimator struct {
-	byteFeeIn   chan btcutil.Amount
-	weightFeeIn chan btcutil.Amount
+	byteFeeIn   chan dcrutil.Amount
+	weightFeeIn chan dcrutil.Amount
 
 	quit chan struct{}
 }
 
-func (m *mockFeeEstimator) EstimateFeePerByte(numBlocks uint32) (btcutil.Amount, error) {
+func (m *mockFeeEstimator) EstimateFeePerByte(numBlocks uint32) (dcrutil.Amount, error) {
 	select {
 	case feeRate := <-m.byteFeeIn:
 		return feeRate, nil
@@ -41,7 +40,7 @@ func (m *mockFeeEstimator) EstimateFeePerByte(numBlocks uint32) (btcutil.Amount,
 	}
 }
 
-func (m *mockFeeEstimator) EstimateFeePerWeight(numBlocks uint32) (btcutil.Amount, error) {
+func (m *mockFeeEstimator) EstimateFeePerWeight(numBlocks uint32) (dcrutil.Amount, error) {
 	select {
 	case feeRate := <-m.weightFeeIn:
 		return feeRate, nil
@@ -498,7 +497,7 @@ func (i *mockInvoiceRegistry) AddInvoice(invoice channeldb.Invoice) error {
 	i.Lock()
 	defer i.Unlock()
 
-	rhash := fastsha256.Sum256(invoice.Terms.PaymentPreimage[:])
+	rhash := sha256.Sum256(invoice.Terms.PaymentPreimage[:])
 	i.invoices[chainhash.Hash(rhash)] = invoice
 
 	return nil
@@ -507,7 +506,7 @@ func (i *mockInvoiceRegistry) AddInvoice(invoice channeldb.Invoice) error {
 var _ InvoiceDatabase = (*mockInvoiceRegistry)(nil)
 
 type mockSigner struct {
-	key *btcec.PrivateKey
+	key *secp256k1.PrivateKey
 }
 
 func (m *mockSigner) SignOutputRaw(tx *wire.MsgTx, signDesc *lnwallet.SignDescriptor) ([]byte, error) {

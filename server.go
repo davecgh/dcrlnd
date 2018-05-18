@@ -13,23 +13,22 @@ import (
 	"time"
 
 	"github.com/boltdb/bolt"
-	"github.com/lightningnetwork/lightning-onion"
-	"github.com/lightningnetwork/lnd/autopilot"
-	"github.com/lightningnetwork/lnd/brontide"
-	"github.com/lightningnetwork/lnd/channeldb"
-	"github.com/lightningnetwork/lnd/discovery"
-	"github.com/lightningnetwork/lnd/lnrpc"
-	"github.com/lightningnetwork/lnd/lnwire"
-	"github.com/lightningnetwork/lnd/routing"
-	"github.com/roasbeef/btcd/blockchain"
-	"github.com/roasbeef/btcd/btcec"
-	"github.com/roasbeef/btcd/chaincfg/chainhash"
-	"github.com/roasbeef/btcd/connmgr"
-	"github.com/roasbeef/btcd/wire"
-	"github.com/roasbeef/btcutil"
-
+	"github.com/decred/dcrd/blockchain"
+	"github.com/decred/dcrd/chaincfg/chainhash"
+	"github.com/decred/dcrd/connmgr"
+	"github.com/decred/dcrd/dcrec/secp256k1"
+	"github.com/decred/dcrd/dcrutil"
+	"github.com/decred/dcrd/wire"
+	"github.com/decred/dcrlnd/autopilot"
+	"github.com/decred/dcrlnd/brontide"
+	"github.com/decred/dcrlnd/channeldb"
+	"github.com/decred/dcrlnd/discovery"
+	"github.com/decred/dcrlnd/htlcswitch"
+	"github.com/decred/dcrlnd/lnrpc"
+	"github.com/decred/dcrlnd/lnwire"
+	"github.com/decred/dcrlnd/routing"
 	"github.com/go-errors/errors"
-	"github.com/lightningnetwork/lnd/htlcswitch"
+	"github.com/lightningnetwork/lightning-onion" // TODO(davec): ok?
 )
 
 var (
@@ -52,7 +51,7 @@ type server struct {
 
 	// identityPriv is the private key used to authenticate any incoming
 	// connections.
-	identityPriv *btcec.PrivateKey
+	identityPriv *secp256k1.PrivateKey
 
 	// nodeSigner is an implementation of the MessageSigner implementation
 	// that's backed by the identity private key of the running lnd node.
@@ -117,7 +116,7 @@ type server struct {
 // newServer creates a new instance of the server which is to listen using the
 // passed listener address.
 func newServer(listenAddrs []string, chanDB *channeldb.DB, cc *chainControl,
-	privKey *btcec.PrivateKey) (*server, error) {
+	privKey *secp256k1.PrivateKey) (*server, error) {
 
 	var err error
 
@@ -166,7 +165,7 @@ func newServer(listenAddrs []string, chanDB *channeldb.DB, cc *chainControl,
 	// invoice which all outgoing payments will be sent and all incoming
 	// HTLCs with the debug R-Hash immediately settled.
 	if cfg.DebugHTLC {
-		kiloCoin := btcutil.Amount(btcutil.SatoshiPerBitcoin * 1000)
+		kiloCoin := dcrutil.Amount(dcrutil.AtomsPerCoin * 1000)
 		s.invoices.AddDebugInvoice(kiloCoin, *debugPre)
 		srvrLog.Debugf("Debug HTLC invoice inserted, preimage=%x, hash=%x",
 			debugPre[:], debugHash[:])
@@ -273,7 +272,7 @@ func newServer(listenAddrs []string, chanDB *channeldb.DB, cc *chainControl,
 		Graph:     chanGraph,
 		Chain:     cc.chainIO,
 		ChainView: cc.chainView,
-		SendToSwitch: func(firstHop *btcec.PublicKey,
+		SendToSwitch: func(firstHop *secp256k1.PublicKey,
 			htlcAdd *lnwire.UpdateAddHTLC,
 			circuit *sphinx.Circuit) ([32]byte, error) {
 
@@ -725,7 +724,7 @@ func (s *server) genNodeAnnouncement(
 }
 
 type nodeAddresses struct {
-	pubKey    *btcec.PublicKey
+	pubKey    *secp256k1.PublicKey
 	addresses []*net.TCPAddr
 }
 
@@ -910,7 +909,7 @@ func (s *server) broadcastMessages(
 // method will return a non-nil error.
 //
 // NOTE: This function is safe for concurrent access.
-func (s *server) SendToPeer(target *btcec.PublicKey,
+func (s *server) SendToPeer(target *secp256k1.PublicKey,
 	msgs ...lnwire.Message) error {
 
 	s.mu.Lock()
@@ -923,7 +922,7 @@ func (s *server) SendToPeer(target *btcec.PublicKey,
 // particular peer comes online.
 //
 // NOTE: This function is safe for concurrent access.
-func (s *server) NotifyWhenOnline(peer *btcec.PublicKey,
+func (s *server) NotifyWhenOnline(peer *secp256k1.PublicKey,
 	connectedChan chan<- struct{}) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -948,7 +947,7 @@ func (s *server) NotifyWhenOnline(peer *btcec.PublicKey,
 
 // sendToPeer is an internal method that delivers messages to the specified
 // `target` peer.
-func (s *server) sendToPeer(target *btcec.PublicKey,
+func (s *server) sendToPeer(target *secp256k1.PublicKey,
 	msgs []lnwire.Message) error {
 
 	// Compute the target peer's identifier.
@@ -1031,7 +1030,7 @@ func (s *server) sendPeerMessages(
 // daemon's local representation of the remote peer.
 //
 // NOTE: This function is safe for concurrent access.
-func (s *server) FindPeer(peerKey *btcec.PublicKey) (*peer, error) {
+func (s *server) FindPeer(peerKey *secp256k1.PublicKey) (*peer, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
@@ -1214,7 +1213,7 @@ func (s *server) peerConnected(conn net.Conn, connReq *connmgr.ConnReq,
 // utilize the ordering of the local and remote public key. If we didn't use
 // such a tie breaker, then we risk _both_ connections erroneously being
 // dropped.
-func shouldDropLocalConnection(local, remote *btcec.PublicKey) bool {
+func shouldDropLocalConnection(local, remote *secp256k1.PublicKey) bool {
 	localPubBytes := local.SerializeCompressed()
 	remotePubPbytes := remote.SerializeCompressed()
 
@@ -1482,12 +1481,12 @@ func (s *server) removePeer(p *peer) {
 // specified relative peer ID, or a global lightning  ID.
 type openChanReq struct {
 	targetPeerID int32
-	targetPubkey *btcec.PublicKey
+	targetPubkey *secp256k1.PublicKey
 
 	chainHash chainhash.Hash
 
-	localFundingAmt  btcutil.Amount
-	remoteFundingAmt btcutil.Amount
+	localFundingAmt  dcrutil.Amount
+	remoteFundingAmt dcrutil.Amount
 
 	pushAmt lnwire.MilliSatoshi
 
@@ -1577,7 +1576,7 @@ func (s *server) ConnectToPeer(addr *lnwire.NetAddress, perm bool) error {
 // identified by public key.
 //
 // NOTE: This function is safe for concurrent access.
-func (s *server) DisconnectPeer(pubKey *btcec.PublicKey) error {
+func (s *server) DisconnectPeer(pubKey *secp256k1.PublicKey) error {
 	pubBytes := pubKey.SerializeCompressed()
 	pubStr := string(pubBytes)
 
@@ -1612,10 +1611,10 @@ func (s *server) DisconnectPeer(pubKey *btcec.PublicKey) error {
 // peer identified by ID with the passed channel funding parameters.
 //
 // NOTE: This function is safe for concurrent access.
-func (s *server) OpenChannel(peerID int32, nodeKey *btcec.PublicKey,
-	localAmt btcutil.Amount, pushAmt lnwire.MilliSatoshi,
+func (s *server) OpenChannel(peerID int32, nodeKey *secp256k1.PublicKey,
+	localAmt dcrutil.Amount, pushAmt lnwire.MilliSatoshi,
 	minHtlc lnwire.MilliSatoshi,
-	fundingFeePerByte btcutil.Amount,
+	fundingFeePerByte dcrutil.Amount,
 	private bool) (chan *lnrpc.OpenStatusUpdate, chan error) {
 
 	updateChan := make(chan *lnrpc.OpenStatusUpdate, 1)

@@ -7,19 +7,19 @@ import (
 	"testing"
 	"time"
 
-	"github.com/roasbeef/btcd/btcec"
-	"github.com/roasbeef/btcd/wire"
-	"github.com/roasbeef/btcutil"
+	"github.com/decred/dcrd/dcrec/secp256k1"
+	"github.com/decred/dcrd/dcrutil"
+	"github.com/decred/dcrd/wire"
 )
 
 type moreChansResp struct {
 	needMore bool
-	amt      btcutil.Amount
+	amt      dcrutil.Amount
 }
 
 type moreChanArg struct {
 	chans   []Channel
-	balance btcutil.Amount
+	balance dcrutil.Amount
 }
 
 type mockHeuristic struct {
@@ -31,7 +31,7 @@ type mockHeuristic struct {
 }
 
 func (m *mockHeuristic) NeedMoreChans(chans []Channel,
-	balance btcutil.Amount) (btcutil.Amount, bool) {
+	balance dcrutil.Amount) (dcrutil.Amount, bool) {
 
 	if m.moreChanArgs != nil {
 		m.moreChanArgs <- moreChanArg{
@@ -46,15 +46,15 @@ func (m *mockHeuristic) NeedMoreChans(chans []Channel,
 }
 
 type directiveArg struct {
-	self  *btcec.PublicKey
+	self  *secp256k1.PublicKey
 	graph ChannelGraph
-	amt   btcutil.Amount
+	amt   dcrutil.Amount
 	skip  map[NodeID]struct{}
 }
 
-func (m *mockHeuristic) Select(self *btcec.PublicKey, graph ChannelGraph,
+func (m *mockHeuristic) Select(self *secp256k1.PublicKey, graph ChannelGraph,
 
-	amtToUse btcutil.Amount, skipChans map[NodeID]struct{}) ([]AttachmentDirective, error) {
+	amtToUse dcrutil.Amount, skipChans map[NodeID]struct{}) ([]AttachmentDirective, error) {
 
 	if m.directiveArgs != nil {
 		m.directiveArgs <- directiveArg{
@@ -72,8 +72,8 @@ func (m *mockHeuristic) Select(self *btcec.PublicKey, graph ChannelGraph,
 var _ AttachmentHeuristic = (*mockHeuristic)(nil)
 
 type openChanIntent struct {
-	target *btcec.PublicKey
-	amt    btcutil.Amount
+	target *secp256k1.PublicKey
+	amt    dcrutil.Amount
 	addrs  []net.Addr
 }
 
@@ -81,8 +81,8 @@ type mockChanController struct {
 	openChanSignals chan openChanIntent
 }
 
-func (m *mockChanController) OpenChannel(target *btcec.PublicKey, amt btcutil.Amount,
-	addrs []net.Addr) error {
+func (m *mockChanController) OpenChannel(target *secp256k1.PublicKey,
+	amt dcrutil.Amount, addrs []net.Addr) error {
 
 	m.openChanSignals <- openChanIntent{
 		target: target,
@@ -96,11 +96,11 @@ func (m *mockChanController) CloseChannel(chanPoint *wire.OutPoint) error {
 	return nil
 }
 func (m *mockChanController) SpliceIn(chanPoint *wire.OutPoint,
-	amt btcutil.Amount) (*Channel, error) {
+	amt dcrutil.Amount) (*Channel, error) {
 	return nil, nil
 }
 func (m *mockChanController) SpliceOut(chanPoint *wire.OutPoint,
-	amt btcutil.Amount) (*Channel, error) {
+	amt dcrutil.Amount) (*Channel, error) {
 	return nil, nil
 }
 
@@ -132,7 +132,7 @@ func TestAgentChannelOpenSignal(t *testing.T) {
 		Self:           self,
 		Heuristic:      heuristic,
 		ChanController: chanController,
-		WalletBalance: func() (btcutil.Amount, error) {
+		WalletBalance: func() (dcrutil.Amount, error) {
 			return 0, nil
 		},
 		Graph: memGraph,
@@ -171,7 +171,7 @@ func TestAgentChannelOpenSignal(t *testing.T) {
 	// with a capacity of 1 BTC.
 	newChan := Channel{
 		ChanID:   randChanID(),
-		Capacity: btcutil.SatoshiPerBitcoin,
+		Capacity: dcrutil.AtomsPerCoin,
 	}
 	agent.OnChannelOpen(newChan)
 
@@ -245,7 +245,7 @@ func TestAgentChannelCloseSignal(t *testing.T) {
 		Self:           self,
 		Heuristic:      heuristic,
 		ChanController: chanController,
-		WalletBalance: func() (btcutil.Amount, error) {
+		WalletBalance: func() (dcrutil.Amount, error) {
 			return 0, nil
 		},
 		Graph: memGraph,
@@ -255,11 +255,11 @@ func TestAgentChannelCloseSignal(t *testing.T) {
 	initialChans := []Channel{
 		{
 			ChanID:   randChanID(),
-			Capacity: btcutil.SatoshiPerBitcoin,
+			Capacity: dcrutil.AtomsPerCoin,
 		},
 		{
 			ChanID:   randChanID(),
-			Capacity: btcutil.SatoshiPerBitcoin * 2,
+			Capacity: dcrutil.AtomsPerCoin * 2,
 		},
 	}
 	agent, err := New(testCfg, initialChans)
@@ -360,7 +360,7 @@ func TestAgentBalanceUpdate(t *testing.T) {
 	memGraph, _, _ := newMemChanGraph()
 
 	// The wallet will start with 2 BTC available.
-	const walletBalance = btcutil.SatoshiPerBitcoin * 2
+	const walletBalance = dcrutil.AtomsPerCoin * 2
 
 	// With the dependencies we created, we can now create the initial
 	// agent itself.
@@ -368,7 +368,7 @@ func TestAgentBalanceUpdate(t *testing.T) {
 		Self:           self,
 		Heuristic:      heuristic,
 		ChanController: chanController,
-		WalletBalance: func() (btcutil.Amount, error) {
+		WalletBalance: func() (dcrutil.Amount, error) {
 			return walletBalance, nil
 		},
 		Graph: memGraph,
@@ -405,7 +405,7 @@ func TestAgentBalanceUpdate(t *testing.T) {
 
 	// Next we'll send a new balance update signal to the agent, adding 5
 	// BTC to the amount of available funds.
-	const balanceDelta = btcutil.SatoshiPerBitcoin * 5
+	const balanceDelta = dcrutil.AtomsPerCoin * 5
 	agent.OnBalanceChange(balanceDelta)
 
 	wg = sync.WaitGroup{}
@@ -475,7 +475,7 @@ func TestAgentImmediateAttach(t *testing.T) {
 	memGraph, _, _ := newMemChanGraph()
 
 	// The wallet will start with 10 BTC available.
-	const walletBalance = btcutil.SatoshiPerBitcoin * 10
+	const walletBalance = dcrutil.AtomsPerCoin * 10
 
 	// With the dependencies we created, we can now create the initial
 	// agent itself.
@@ -483,7 +483,7 @@ func TestAgentImmediateAttach(t *testing.T) {
 		Self:           self,
 		Heuristic:      heuristic,
 		ChanController: chanController,
-		WalletBalance: func() (btcutil.Amount, error) {
+		WalletBalance: func() (dcrutil.Amount, error) {
 			return walletBalance, nil
 		},
 		Graph: memGraph,
@@ -513,7 +513,7 @@ func TestAgentImmediateAttach(t *testing.T) {
 		// We'll send over a response indicating that it should
 		// establish more channels, and give it a budget of 5 BTC to do
 		// so.
-		case heuristic.moreChansResps <- moreChansResp{true, 5 * btcutil.SatoshiPerBitcoin}:
+		case heuristic.moreChansResps <- moreChansResp{true, 5 * dcrutil.AtomsPerCoin}:
 			wg.Done()
 			return
 		case <-time.After(time.Second * 10):
@@ -533,7 +533,7 @@ func TestAgentImmediateAttach(t *testing.T) {
 	for i := 0; i < numChans; i++ {
 		directives[i] = AttachmentDirective{
 			PeerKey: self,
-			ChanAmt: btcutil.SatoshiPerBitcoin,
+			ChanAmt: dcrutil.AtomsPerCoin,
 			Addrs: []net.Addr{
 				&net.TCPAddr{
 					IP: bytes.Repeat([]byte("a"), 16),
@@ -567,9 +567,9 @@ func TestAgentImmediateAttach(t *testing.T) {
 	for i := 0; i < numChans; i++ {
 		select {
 		case openChan := <-chanController.openChanSignals:
-			if openChan.amt != btcutil.SatoshiPerBitcoin {
+			if openChan.amt != dcrutil.AtomsPerCoin {
 				t.Fatalf("invalid chan amt: expected %v, got %v",
-					btcutil.SatoshiPerBitcoin, openChan.amt)
+					dcrutil.AtomsPerCoin, openChan.amt)
 			}
 			if !openChan.target.IsEqual(self) {
 				t.Fatalf("unexpected key: expected %x, got %x",
@@ -608,7 +608,7 @@ func TestAgentPendingChannelState(t *testing.T) {
 	memGraph, _, _ := newMemChanGraph()
 
 	// The wallet will start with 6 BTC available.
-	const walletBalance = btcutil.SatoshiPerBitcoin * 6
+	const walletBalance = dcrutil.AtomsPerCoin * 6
 
 	// With the dependencies we created, we can now create the initial
 	// agent itself.
@@ -616,7 +616,7 @@ func TestAgentPendingChannelState(t *testing.T) {
 		Self:           self,
 		Heuristic:      heuristic,
 		ChanController: chanController,
-		WalletBalance: func() (btcutil.Amount, error) {
+		WalletBalance: func() (dcrutil.Amount, error) {
 			return walletBalance, nil
 		},
 		Graph: memGraph,
@@ -646,7 +646,7 @@ func TestAgentPendingChannelState(t *testing.T) {
 		// We'll send over a response indicating that it should
 		// establish more channels, and give it a budget of 1 BTC to do
 		// so.
-		case heuristic.moreChansResps <- moreChansResp{true, btcutil.SatoshiPerBitcoin}:
+		case heuristic.moreChansResps <- moreChansResp{true, dcrutil.AtomsPerCoin}:
 			wg.Done()
 			return
 		case <-time.After(time.Second * 10):
@@ -670,7 +670,7 @@ func TestAgentPendingChannelState(t *testing.T) {
 	nodeID := NewNodeID(nodeKey)
 	nodeDirective := AttachmentDirective{
 		PeerKey: nodeKey,
-		ChanAmt: 0.5 * btcutil.SatoshiPerBitcoin,
+		ChanAmt: 0.5 * dcrutil.AtomsPerCoin,
 		Addrs: []net.Addr{
 			&net.TCPAddr{
 				IP: bytes.Repeat([]byte("a"), 16),
@@ -709,7 +709,7 @@ func TestAgentPendingChannelState(t *testing.T) {
 	// Now, in order to test that the pending state was properly updated,
 	// we'll trigger a balance update in order to trigger a query to the
 	// heuristic.
-	agent.OnBalanceChange(0.4 * btcutil.SatoshiPerBitcoin)
+	agent.OnBalanceChange(0.4 * dcrutil.AtomsPerCoin)
 
 	wg = sync.WaitGroup{}
 
@@ -740,7 +740,7 @@ func TestAgentPendingChannelState(t *testing.T) {
 	// We'll send across a response indicating that it *does* need more
 	// channels.
 	select {
-	case heuristic.moreChansResps <- moreChansResp{true, btcutil.SatoshiPerBitcoin}:
+	case heuristic.moreChansResps <- moreChansResp{true, dcrutil.AtomsPerCoin}:
 	case <-time.After(time.Second * 10):
 		t.Fatalf("need more chans wasn't queried in time")
 	}

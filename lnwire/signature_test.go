@@ -5,7 +5,7 @@ import (
 	"math/big"
 	"testing"
 
-	"github.com/roasbeef/btcd/btcec"
+	"github.com/decred/dcrd/dcrec/secp256k1"
 )
 
 func TestSignatureSerializeDeserialize(t *testing.T) {
@@ -13,13 +13,13 @@ func TestSignatureSerializeDeserialize(t *testing.T) {
 
 	// Local-scoped closure to serialize and deserialize a Signature and
 	// check for errors as well as check if the results are correct.
-	signatureSerializeDeserialize := func(e btcec.Signature) error {
+	signatureSerializeDeserialize := func(e secp256k1.Signature) error {
 		var b [64]byte
 		err := SerializeSigToWire(&b, &e)
 		if err != nil {
 			return err
 		}
-		var e2 *btcec.Signature
+		var e2 *secp256k1.Signature
 		err = DeserializeSigFromWire(&e2, b)
 		if err != nil {
 			return err
@@ -35,11 +35,11 @@ func TestSignatureSerializeDeserialize(t *testing.T) {
 		return nil
 	}
 
-	sig := btcec.Signature{}
+	sig := secp256k1.Signature{}
 
 	// Check R = N-1, S = 128.
 	sig.R = big.NewInt(1) // Allocate a big.Int before we call .Sub.
-	sig.R.Sub(btcec.S256().N, sig.R)
+	sig.R.Sub(secp256k1.S256().N, sig.R)
 	sig.S = big.NewInt(128)
 	err := signatureSerializeDeserialize(sig)
 	if err != nil {
@@ -54,7 +54,7 @@ func TestSignatureSerializeDeserialize(t *testing.T) {
 	}
 
 	// Check R = N-1, S = N>>1.
-	sig.S.Set(btcec.S256().N)
+	sig.S.Set(secp256k1.S256().N)
 	sig.S.Rsh(sig.S, 1)
 	err = signatureSerializeDeserialize(sig)
 	if err != nil {
@@ -62,7 +62,7 @@ func TestSignatureSerializeDeserialize(t *testing.T) {
 	}
 
 	// Check R = N-1, S = N.
-	sig.S.Set(btcec.S256().N)
+	sig.S.Set(secp256k1.S256().N)
 	err = signatureSerializeDeserialize(sig)
 	if err.Error() != "signature S isn't 1 or more" {
 		t.Fatalf("R = N-1, S = N should become R = N-1, S = 0: %s",
@@ -80,7 +80,7 @@ func TestSignatureSerializeDeserialize(t *testing.T) {
 	}
 
 	// Check R = 2N, S = 128
-	sig.R.Mul(btcec.S256().N, big.NewInt(2))
+	sig.R.Mul(secp256k1.S256().N, big.NewInt(2))
 	sig.S.Set(big.NewInt(127))
 	err = signatureSerializeDeserialize(sig)
 	if err.Error() != "R is over 32 bytes long without padding" {

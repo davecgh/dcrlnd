@@ -4,8 +4,8 @@ import (
 	"bytes"
 	"io"
 
-	"github.com/roasbeef/btcd/btcec"
-	"github.com/roasbeef/btcd/chaincfg/chainhash"
+	"github.com/decred/dcrd/chaincfg/chainhash"
+	"github.com/decred/dcrd/dcrec/secp256k1"
 )
 
 // ChanUpdateFlag is a bitfield that signals various options concerning a
@@ -32,7 +32,7 @@ const (
 type ChannelUpdate struct {
 	// Signature is used to validate the announced data and prove the
 	// ownership of node id.
-	Signature *btcec.Signature
+	Signature *secp256k1.Signature
 
 	// ChainHash denotes the target chain that this channel was opened
 	// within. This value should be the genesis hash of the target chain.

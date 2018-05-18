@@ -15,11 +15,11 @@ import (
 	"syscall"
 
 	"github.com/awalterschulze/gographviz"
+	"github.com/decred/dcrd/chaincfg/chainhash"
+	"github.com/decred/dcrd/dcrutil"
+	"github.com/decred/dcrlnd/lnrpc"
 	"github.com/golang/protobuf/jsonpb"
 	"github.com/golang/protobuf/proto"
-	"github.com/lightningnetwork/lnd/lnrpc"
-	"github.com/roasbeef/btcd/chaincfg/chainhash"
-	"github.com/roasbeef/btcutil"
 	"github.com/urfave/cli"
 	"golang.org/x/crypto/ssh/terminal"
 	"golang.org/x/net/context"
@@ -1465,11 +1465,12 @@ func drawChannelGraph(graph *lnrpc.ChannelGraph) error {
 		src := fmt.Sprintf(`"%v"`, truncateStr(edge.Node1Pub, numKeyChars))
 		dest := fmt.Sprintf(`"%v"`, truncateStr(edge.Node2Pub, numKeyChars))
 
+		// TODO(davec): Comments
 		// The weight for our edge will be the total capacity of the
 		// channel, in BTC.
 		// TODO(roasbeef): can also factor in the edges time-lock delta
 		// and fee information
-		amt := btcutil.Amount(edge.Capacity).ToBTC()
+		amt := dcrutil.Amount(edge.Capacity).ToCoin()
 		edgeWeight := strconv.FormatFloat(amt, 'f', -1, 64)
 
 		// The label for each edge will simply be a truncated version

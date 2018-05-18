@@ -266,8 +266,8 @@ func TestSpecificationDeriveElement(t *testing.T) {
 			// Check that they are equal.
 			if !result.isEqual(output) {
 				t.Fatalf("Failed (%v): hash is wrong, real:"+
-					"%v expected:%v", test.name,
-					result.hash.String(), output.hash.String())
+					"%x expected:%x", test.name,
+					result.hash, output.hash)
 			}
 		}
 

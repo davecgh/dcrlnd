@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"sync"
 
+	"github.com/decred/dcrlnd/lnwire"
 	"github.com/go-errors/errors"
-	"github.com/lightningnetwork/lnd/lnwire"
 )
 
 // PaymentCircuit is used by the HTLC switch subsystem to determine the

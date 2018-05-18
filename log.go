@@ -9,16 +9,16 @@ import (
 	"path/filepath"
 
 	"github.com/btcsuite/btclog"
+	"github.com/decred/dcrd/connmgr"
+	"github.com/decred/dcrlnd/autopilot"
+	"github.com/decred/dcrlnd/chainntnfs"
+	"github.com/decred/dcrlnd/channeldb"
+	"github.com/decred/dcrlnd/discovery"
+	"github.com/decred/dcrlnd/htlcswitch"
+	"github.com/decred/dcrlnd/lnwallet"
+	"github.com/decred/dcrlnd/routing"
 	"github.com/jrick/logrotate/rotator"
 	"github.com/lightninglabs/neutrino"
-	"github.com/lightningnetwork/lnd/autopilot"
-	"github.com/lightningnetwork/lnd/chainntnfs"
-	"github.com/lightningnetwork/lnd/channeldb"
-	"github.com/lightningnetwork/lnd/discovery"
-	"github.com/lightningnetwork/lnd/htlcswitch"
-	"github.com/lightningnetwork/lnd/lnwallet"
-	"github.com/lightningnetwork/lnd/routing"
-	"github.com/roasbeef/btcd/connmgr"
 )
 
 // logWriter implements an io.Writer that outputs to both standard output and

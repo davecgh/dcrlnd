@@ -2,21 +2,21 @@ package chainview
 
 import (
 	"bytes"
+	"context"
 	"encoding/hex"
 	"fmt"
 	"sync"
 	"sync/atomic"
 
-	"github.com/roasbeef/btcd/btcjson"
-	"github.com/roasbeef/btcd/chaincfg/chainhash"
-	"github.com/roasbeef/btcd/rpcclient"
-	"github.com/roasbeef/btcd/wire"
-	"github.com/roasbeef/btcutil"
+	"github.com/decred/dcrd/chaincfg/chainhash"
+	"github.com/decred/dcrd/dcrjson"
+	"github.com/decred/dcrd/rpcclient"
+	"github.com/decred/dcrd/wire"
 )
 
-// BtcdFilteredChainView is an implementation of the FilteredChainView
-// interface which is backed by an active websockets connection to btcd.
-type BtcdFilteredChainView struct {
+// DcrdFilteredChainView is an implementation of the FilteredChainView
+// interface which is backed by an active websockets connection to dcrd.
+type DcrdFilteredChainView struct {
 	started int32
 	stopped int32
 
@@ -25,9 +25,9 @@ type BtcdFilteredChainView struct {
 	// determine up to what height we would need to rescan in case
 	// of a filter update.
 	bestHeightMtx sync.Mutex
-	bestHeight    uint32
+	bestHeight    int64
 
-	btcdConn *rpcclient.Client
+	dcrdConn *rpcclient.Client
 
 	// blockEventQueue is the ordered queue used to keep the order
 	// of connected and disconnected blocks sent to the reader of the
@@ -51,14 +51,14 @@ type BtcdFilteredChainView struct {
 	wg   sync.WaitGroup
 }
 
-// A compile time check to ensure BtcdFilteredChainView implements the
+// A compile time check to ensure DcrdFilteredChainView implements the
 // chainview.FilteredChainView.
-var _ FilteredChainView = (*BtcdFilteredChainView)(nil)
+var _ FilteredChainView = (*DcrdFilteredChainView)(nil)
 
-// NewBtcdFilteredChainView creates a new instance of a FilteredChainView from
-// RPC credentials for an active btcd instance.
-func NewBtcdFilteredChainView(config rpcclient.ConnConfig) (*BtcdFilteredChainView, error) {
-	chainView := &BtcdFilteredChainView{
+// NewDcrdFilteredChainView creates a new instance of a FilteredChainView from
+// RPC credentials for an active dcrd instance.
+func NewDcrdFilteredChainView(config rpcclient.ConnConfig) (*DcrdFilteredChainView, error) {
+	chainView := &DcrdFilteredChainView{
 		chainFilter:     make(map[wire.OutPoint]struct{}),
 		filterUpdates:   make(chan filterUpdate),
 		filterBlockReqs: make(chan *filterBlockReq),
@@ -66,11 +66,11 @@ func NewBtcdFilteredChainView(config rpcclient.ConnConfig) (*BtcdFilteredChainVi
 	}
 
 	ntfnCallbacks := &rpcclient.NotificationHandlers{
-		OnFilteredBlockConnected:    chainView.onFilteredBlockConnected,
-		OnFilteredBlockDisconnected: chainView.onFilteredBlockDisconnected,
+		OnBlockConnected:    chainView.onBlockConnected,
+		OnBlockDisconnected: chainView.onBlockDisconnected,
 	}
 
-	// Disable connecting to btcd within the rpcclient.New method. We
+	// Disable connecting to dcrd within the rpcclient.New method. We
 	// defer establishing the connection to our .Start() method.
 	config.DisableConnectOnNew = true
 	config.DisableAutoReconnect = false
@@ -78,7 +78,7 @@ func NewBtcdFilteredChainView(config rpcclient.ConnConfig) (*BtcdFilteredChainVi
 	if err != nil {
 		return nil, err
 	}
-	chainView.btcdConn = chainConn
+	chainView.dcrdConn = chainConn
 
 	chainView.blockQueue = newBlockEventQueue()
 
@@ -88,7 +88,7 @@ func NewBtcdFilteredChainView(config rpcclient.ConnConfig) (*BtcdFilteredChainVi
 // Start starts all goroutines necessary for normal operation.
 //
 // NOTE: This is part of the FilteredChainView interface.
-func (b *BtcdFilteredChainView) Start() error {
+func (b *DcrdFilteredChainView) Start() error {
 	// Already started?
 	if atomic.AddInt32(&b.started, 1) != 1 {
 		return nil
@@ -96,22 +96,22 @@ func (b *BtcdFilteredChainView) Start() error {
 
 	log.Infof("FilteredChainView starting")
 
-	// Connect to btcd, and register for notifications on connected, and
+	// Connect to dcrd, and register for notifications on connected, and
 	// disconnected blocks.
-	if err := b.btcdConn.Connect(20); err != nil {
+	if err := b.dcrdConn.Connect(context.Background(), true); err != nil {
 		return err
 	}
-	if err := b.btcdConn.NotifyBlocks(); err != nil {
+	if err := b.dcrdConn.NotifyBlocks(); err != nil {
 		return err
 	}
 
-	_, bestHeight, err := b.btcdConn.GetBestBlock()
+	_, bestHeight, err := b.dcrdConn.GetBestBlock()
 	if err != nil {
 		return err
 	}
 
 	b.bestHeightMtx.Lock()
-	b.bestHeight = uint32(bestHeight)
+	b.bestHeight = bestHeight
 	b.bestHeightMtx.Unlock()
 
 	b.blockQueue.Start()
@@ -126,15 +126,15 @@ func (b *BtcdFilteredChainView) Start() error {
 // method.
 //
 // NOTE: This is part of the FilteredChainView interface.
-func (b *BtcdFilteredChainView) Stop() error {
+func (b *DcrdFilteredChainView) Stop() error {
 	// Already shutting down?
 	if atomic.AddInt32(&b.stopped, 1) != 1 {
 		return nil
 	}
 
-	// Shutdown the rpc client, this gracefully disconnects from btcd, and
+	// Shutdown the rpc client, this gracefully disconnects from dcrd, and
 	// cleans up all related resources.
-	b.btcdConn.Shutdown()
+	b.dcrdConn.Shutdown()
 
 	b.blockQueue.Stop()
 
@@ -146,17 +146,26 @@ func (b *BtcdFilteredChainView) Stop() error {
 	return nil
 }
 
-// onFilteredBlockConnected is called for each block that's connected to the
-// end of the main chain. Based on our current chain filter, the block may or
-// may not include any relevant transactions.
-func (b *BtcdFilteredChainView) onFilteredBlockConnected(height int32,
-	header *wire.BlockHeader, txns []*btcutil.Tx) {
+// onBlockConnected is called for each block that's connected to the end of the
+// main chain. Based on our current chain filter, the block may or may not
+// include any relevant transactions.
+func (b *DcrdFilteredChainView) onBlockConnected(blockHeader []byte, txns [][]byte) {
+	// TODO(davec): Finish...
+	var header wire.BlockHeader
+	if err := header.FromBytes(blockHeader); err != nil {
+		// TODO(davec): Log...
+		return
+	}
 
 	mtxs := make([]*wire.MsgTx, len(txns))
-	for i, tx := range txns {
-		mtx := tx.MsgTx()
-		mtxs[i] = mtx
+	for i, txBytes := range txns {
+		if err := mtxs[i].FromBytes(txBytes); err != nil {
+			// TODO(davec): Log...
+			return
+		}
+	}
 
+	for _, mtx := range mtxs {
 		for _, txIn := range mtx.TxIn {
 			// We can delete this outpoint from the chainFilter, as
 			// we just received a block where it was spent. In case
@@ -168,7 +177,6 @@ func (b *BtcdFilteredChainView) onFilteredBlockConnected(height int32,
 			delete(b.chainFilter, txIn.PreviousOutPoint)
 			b.filterMtx.Unlock()
 		}
-
 	}
 
 	// We record the height of the last connected block added to the
@@ -176,12 +184,12 @@ func (b *BtcdFilteredChainView) onFilteredBlockConnected(height int32,
 	// a rescan. It must be protected by a mutex since a filter update
 	// might be trying to read it concurrently.
 	b.bestHeightMtx.Lock()
-	b.bestHeight = uint32(height)
+	b.bestHeight = int64(header.Height)
 	b.bestHeightMtx.Unlock()
 
 	block := &FilteredBlock{
 		Hash:         header.BlockHash(),
-		Height:       uint32(height),
+		Height:       int64(header.Height),
 		Transactions: mtxs,
 	}
 
@@ -189,25 +197,28 @@ func (b *BtcdFilteredChainView) onFilteredBlockConnected(height int32,
 		eventType: connected,
 		block:     block,
 	})
+
 }
 
-// onFilteredBlockDisconnected is a callback which is executed once a block is
+// onBlockDisconnected is a callback which is executed once a block is
 // disconnected from the end of the main chain.
-func (b *BtcdFilteredChainView) onFilteredBlockDisconnected(height int32,
-	header *wire.BlockHeader) {
+func (b *DcrdFilteredChainView) onBlockDisconnected(blockHeader []byte) {
+	// TODO(davec): Finish
 
-	log.Debugf("got disconnected block at height %d: %v", height,
-		header.BlockHash())
+	/*
+		log.Debugf("got disconnected block at height %d: %v", height,
+			header.BlockHash())
 
-	filteredBlock := &FilteredBlock{
-		Hash:   header.BlockHash(),
-		Height: uint32(height),
-	}
+		filteredBlock := &FilteredBlock{
+			Hash:   header.BlockHash(),
+			Height: uint32(height),
+		}
 
-	b.blockQueue.Add(&blockEvent{
-		eventType: disconnected,
-		block:     filteredBlock,
-	})
+		b.blockQueue.Add(&blockEvent{
+			eventType: disconnected,
+			block:     filteredBlock,
+		})
+	*/
 }
 
 // filterBlockReq houses a request to manually filter a block specified by
@@ -224,7 +235,7 @@ type filterBlockReq struct {
 // selected lock, then the internal chainFilter will also be updated.
 //
 // NOTE: This is part of the FilteredChainView interface.
-func (b *BtcdFilteredChainView) FilterBlock(blockHash *chainhash.Hash) (*FilteredBlock, error) {
+func (b *DcrdFilteredChainView) FilterBlock(blockHash *chainhash.Hash) (*FilteredBlock, error) {
 	req := &filterBlockReq{
 		blockHash: blockHash,
 		resp:      make(chan *FilteredBlock, 1),
@@ -246,7 +257,7 @@ func (b *BtcdFilteredChainView) FilterBlock(blockHash *chainhash.Hash) (*Filtere
 // filtration.
 //
 // TODO(roasbeef): change to use loadfilter RPC's
-func (b *BtcdFilteredChainView) chainFilterer() {
+func (b *DcrdFilteredChainView) chainFilterer() {
 	defer b.wg.Done()
 
 	// filterBlock is a helper funciton that scans the given block, and
@@ -273,12 +284,11 @@ func (b *BtcdFilteredChainView) chainFilterer() {
 		return filteredTxns
 	}
 
-	decodeJSONBlock := func(block *btcjson.RescannedBlock,
-		height uint32) (*FilteredBlock, error) {
+	decodeJSONBlock := func(block *dcrjson.RescannedBlock,
+		height int64) (*FilteredBlock, error) {
 		hash, err := chainhash.NewHashFromStr(block.Hash)
 		if err != nil {
 			return nil, err
-
 		}
 		txs := make([]*wire.MsgTx, 0, len(block.Transactions))
 		for _, str := range block.Transactions {
@@ -321,8 +331,7 @@ func (b *BtcdFilteredChainView) chainFilterer() {
 			// Apply the new TX filter to btcd, which will cause
 			// all following notifications from and calls to it
 			// return blocks filtered with the new filter.
-			b.btcdConn.LoadTxFilter(false, []btcutil.Address{},
-				update.newUtxos)
+			b.dcrdConn.LoadTxFilter(false, nil, update.newUtxos)
 
 			// All blocks gotten after we loaded the filter will
 			// have the filter applied, but we will need to rescan
@@ -345,7 +354,7 @@ func (b *BtcdFilteredChainView) chainFilterer() {
 			// with btcd applying the newly loaded filter to each
 			// block.
 			for i := update.updateHeight + 1; i < bestHeight+1; i++ {
-				blockHash, err := b.btcdConn.GetBlockHash(int64(i))
+				blockHash, err := b.dcrdConn.GetBlockHash(int64(i))
 				if err != nil {
 					log.Warnf("Unable to get block hash "+
 						"for block at height %d: %v",
@@ -357,7 +366,7 @@ func (b *BtcdFilteredChainView) chainFilterer() {
 				// is happening while we rescan, we scan one
 				// block at a time, skipping blocks that might
 				// have gone missing.
-				rescanned, err := b.btcdConn.RescanBlocks(
+				rescanned, err := b.dcrdConn.Rescan(
 					[]chainhash.Hash{*blockHash})
 				if err != nil {
 					log.Warnf("Unable to rescan block "+
@@ -368,14 +377,14 @@ func (b *BtcdFilteredChainView) chainFilterer() {
 
 				// If no block was returned from the rescan, it
 				// means no matching transactions were found.
-				if len(rescanned) != 1 {
+				if len(rescanned.DiscoveredData) != 1 {
 					log.Tracef("rescan of block %v at "+
 						"height=%d yielded no "+
 						"transactions", blockHash, i)
 					continue
 				}
 				decoded, err := decodeJSONBlock(
-					&rescanned[0], uint32(i))
+					&rescanned.DiscoveredData[0], i)
 				if err != nil {
 					log.Errorf("Unable to decode block: %v",
 						err)
@@ -391,13 +400,13 @@ func (b *BtcdFilteredChainView) chainFilterer() {
 		case req := <-b.filterBlockReqs:
 			// First we'll fetch the block itself as well as some
 			// additional information including its height.
-			block, err := b.btcdConn.GetBlock(req.blockHash)
+			block, err := b.dcrdConn.GetBlock(req.blockHash)
 			if err != nil {
 				req.err <- err
 				req.resp <- nil
 				continue
 			}
-			header, err := b.btcdConn.GetBlockHeaderVerbose(req.blockHash)
+			header, err := b.dcrdConn.GetBlockHeaderVerbose(req.blockHash)
 			if err != nil {
 				req.err <- err
 				req.resp <- nil
@@ -408,7 +417,7 @@ func (b *BtcdFilteredChainView) chainFilterer() {
 			// block and dispatch the proper notification.
 			req.resp <- &FilteredBlock{
 				Hash:         *req.blockHash,
-				Height:       uint32(header.Height),
+				Height:       int64(header.Height),
 				Transactions: filterBlock(block),
 			}
 			req.err <- err
@@ -423,7 +432,7 @@ func (b *BtcdFilteredChainView) chainFilterer() {
 // chainFilter state.
 type filterUpdate struct {
 	newUtxos     []wire.OutPoint
-	updateHeight uint32
+	updateHeight int64
 	done         chan struct{}
 }
 
@@ -435,12 +444,12 @@ type filterUpdate struct {
 // rewound to ensure all relevant notifications are dispatched.
 //
 // NOTE: This is part of the FilteredChainView interface.
-func (b *BtcdFilteredChainView) UpdateFilter(ops []wire.OutPoint, updateHeight uint32) error {
+func (b *DcrdFilteredChainView) UpdateFilter(ops []wire.OutPoint, updateHeight uint32) error {
 	select {
 
 	case b.filterUpdates <- filterUpdate{
 		newUtxos:     ops,
-		updateHeight: updateHeight,
+		updateHeight: int64(updateHeight),
 	}:
 		return nil
 
@@ -455,7 +464,7 @@ func (b *BtcdFilteredChainView) UpdateFilter(ops []wire.OutPoint, updateHeight u
 // set is to be returned.
 //
 // NOTE: This is part of the FilteredChainView interface.
-func (b *BtcdFilteredChainView) FilteredBlocks() <-chan *FilteredBlock {
+func (b *DcrdFilteredChainView) FilteredBlocks() <-chan *FilteredBlock {
 	return b.blockQueue.newBlocks
 }
 
@@ -464,6 +473,6 @@ func (b *BtcdFilteredChainView) FilteredBlocks() <-chan *FilteredBlock {
 // main chain in the case of a re-org.
 //
 // NOTE: This is part of the FilteredChainView interface.
-func (b *BtcdFilteredChainView) DisconnectedBlocks() <-chan *FilteredBlock {
+func (b *DcrdFilteredChainView) DisconnectedBlocks() <-chan *FilteredBlock {
 	return b.blockQueue.staleBlocks
 }

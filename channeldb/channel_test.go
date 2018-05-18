@@ -11,18 +11,18 @@ import (
 	"testing"
 
 	"github.com/davecgh/go-spew/spew"
-	"github.com/lightningnetwork/lnd/lnwire"
-	"github.com/lightningnetwork/lnd/shachain"
-	"github.com/roasbeef/btcd/btcec"
-	"github.com/roasbeef/btcd/chaincfg"
-	"github.com/roasbeef/btcd/chaincfg/chainhash"
-	"github.com/roasbeef/btcd/wire"
-	"github.com/roasbeef/btcutil"
-	_ "github.com/roasbeef/btcwallet/walletdb/bdb"
+	"github.com/decred/dcrd/chaincfg"
+	"github.com/decred/dcrd/chaincfg/chainhash"
+	"github.com/decred/dcrd/dcrec/secp256k1"
+	"github.com/decred/dcrd/dcrutil"
+	"github.com/decred/dcrd/wire"
+	"github.com/decred/dcrlnd/lnwire"
+	"github.com/decred/dcrlnd/shachain"
+	_ "github.com/decred/dcrwallet/walletdb/bdb"
 )
 
 var (
-	netParams = &chaincfg.TestNet3Params
+	netParams = &chaincfg.TestNet2Params
 
 	key = [chainhash.HashSize]byte{
 		0x81, 0xb6, 0x37, 0xd8, 0xfc, 0xd2, 0xc6, 0xda,
@@ -80,7 +80,7 @@ var (
 		Hash:  key,
 		Index: 0,
 	}
-	privKey, pubKey = btcec.PrivKeyFromBytes(btcec.S256(), key[:])
+	privKey, pubKey = secp256k1.PrivKeyFromBytes(key[:])
 )
 
 // makeTestDB creates a new instance of the ChannelDB for testing purposes. A
@@ -128,33 +128,33 @@ func createTestChannelState(cdb *DB) (*OpenChannel, error) {
 
 	localCfg := ChannelConfig{
 		ChannelConstraints: ChannelConstraints{
-			DustLimit:        btcutil.Amount(rand.Int63()),
+			DustLimit:        dcrutil.Amount(rand.Int63()),
 			MaxPendingAmount: lnwire.MilliSatoshi(rand.Int63()),
-			ChanReserve:      btcutil.Amount(rand.Int63()),
+			ChanReserve:      dcrutil.Amount(rand.Int63()),
 			MinHTLC:          lnwire.MilliSatoshi(rand.Int63()),
 			MaxAcceptedHtlcs: uint16(rand.Int31()),
 		},
 		CsvDelay:            uint16(rand.Int31()),
-		MultiSigKey:         privKey.PubKey(),
-		RevocationBasePoint: privKey.PubKey(),
-		PaymentBasePoint:    privKey.PubKey(),
-		DelayBasePoint:      privKey.PubKey(),
-		HtlcBasePoint:       privKey.PubKey(),
+		MultiSigKey:         (*secp256k1.PublicKey)(&privKey.PublicKey),
+		RevocationBasePoint: (*secp256k1.PublicKey)(&privKey.PublicKey),
+		PaymentBasePoint:    (*secp256k1.PublicKey)(&privKey.PublicKey),
+		DelayBasePoint:      (*secp256k1.PublicKey)(&privKey.PublicKey),
+		HtlcBasePoint:       (*secp256k1.PublicKey)(&privKey.PublicKey),
 	}
 	remoteCfg := ChannelConfig{
 		ChannelConstraints: ChannelConstraints{
-			DustLimit:        btcutil.Amount(rand.Int63()),
+			DustLimit:        dcrutil.Amount(rand.Int63()),
 			MaxPendingAmount: lnwire.MilliSatoshi(rand.Int63()),
-			ChanReserve:      btcutil.Amount(rand.Int63()),
+			ChanReserve:      dcrutil.Amount(rand.Int63()),
 			MinHTLC:          lnwire.MilliSatoshi(rand.Int63()),
 			MaxAcceptedHtlcs: uint16(rand.Int31()),
 		},
 		CsvDelay:            uint16(rand.Int31()),
-		MultiSigKey:         privKey.PubKey(),
-		RevocationBasePoint: privKey.PubKey(),
-		PaymentBasePoint:    privKey.PubKey(),
-		DelayBasePoint:      privKey.PubKey(),
-		HtlcBasePoint:       privKey.PubKey(),
+		MultiSigKey:         (*secp256k1.PublicKey)(&privKey.PublicKey),
+		RevocationBasePoint: (*secp256k1.PublicKey)(&privKey.PublicKey),
+		PaymentBasePoint:    (*secp256k1.PublicKey)(&privKey.PublicKey),
+		DelayBasePoint:      (*secp256k1.PublicKey)(&privKey.PublicKey),
+		HtlcBasePoint:       (*secp256k1.PublicKey)(&privKey.PublicKey),
 	}
 
 	chanID := lnwire.NewShortChanIDFromInt(uint64(rand.Int63()))
@@ -167,7 +167,7 @@ func createTestChannelState(cdb *DB) (*OpenChannel, error) {
 		IsInitiator:       true,
 		IsPending:         true,
 		IdentityPub:       pubKey,
-		Capacity:          btcutil.Amount(10000),
+		Capacity:          dcrutil.Amount(10000),
 		LocalChanCfg:      localCfg,
 		RemoteChanCfg:     remoteCfg,
 		TotalMSatSent:     8,
@@ -176,8 +176,8 @@ func createTestChannelState(cdb *DB) (*OpenChannel, error) {
 			CommitHeight:  0,
 			LocalBalance:  lnwire.MilliSatoshi(9000),
 			RemoteBalance: lnwire.MilliSatoshi(3000),
-			CommitFee:     btcutil.Amount(rand.Int63()),
-			FeePerKw:      btcutil.Amount(5000),
+			CommitFee:     dcrutil.Amount(rand.Int63()),
+			FeePerKw:      dcrutil.Amount(5000),
 			CommitTx:      testTx,
 			CommitSig:     bytes.Repeat([]byte{1}, 71),
 		},
@@ -185,14 +185,14 @@ func createTestChannelState(cdb *DB) (*OpenChannel, error) {
 			CommitHeight:  0,
 			LocalBalance:  lnwire.MilliSatoshi(3000),
 			RemoteBalance: lnwire.MilliSatoshi(9000),
-			CommitFee:     btcutil.Amount(rand.Int63()),
-			FeePerKw:      btcutil.Amount(5000),
+			CommitFee:     dcrutil.Amount(rand.Int63()),
+			FeePerKw:      dcrutil.Amount(5000),
 			CommitTx:      testTx,
 			CommitSig:     bytes.Repeat([]byte{1}, 71),
 		},
 		NumConfsRequired:        4,
-		RemoteCurrentRevocation: privKey.PubKey(),
-		RemoteNextRevocation:    privKey.PubKey(),
+		RemoteCurrentRevocation: (*secp256k1.PublicKey)(&privKey.PublicKey),
+		RemoteNextRevocation:    (*secp256k1.PublicKey)(&privKey.PublicKey),
 		RevocationProducer:      producer,
 		RevocationStore:         store,
 		Db:                      cdb,
@@ -255,11 +255,12 @@ func TestOpenChannelPutGetDelete(t *testing.T) {
 	// We'll also test that the channel is properly able to hot swap the
 	// next revocation for the state machine. This tests the initial
 	// post-funding revocation exchange.
-	nextRevKey, err := btcec.NewPrivateKey(btcec.S256())
+	nextRevKey, err := secp256k1.GeneratePrivateKey()
 	if err != nil {
 		t.Fatalf("unable to create new private key: %v", err)
 	}
-	if err := state.InsertNextRevocation(nextRevKey.PubKey()); err != nil {
+	nextRevKeyPub := (*secp256k1.PublicKey)(&nextRevKey.PublicKey)
+	if err := state.InsertNextRevocation(nextRevKeyPub); err != nil {
 		t.Fatalf("unable to update revocation: %v", err)
 	}
 
@@ -270,7 +271,7 @@ func TestOpenChannelPutGetDelete(t *testing.T) {
 	updatedChan := openChannels[0]
 
 	// Ensure that the revocation was set properly.
-	if !nextRevKey.PubKey().IsEqual(updatedChan.RemoteNextRevocation) {
+	if !nextRevKeyPub.IsEqual(updatedChan.RemoteNextRevocation) {
 		t.Fatalf("next revocation wasn't updated")
 	}
 
@@ -281,8 +282,8 @@ func TestOpenChannelPutGetDelete(t *testing.T) {
 	closeSummary := &ChannelCloseSummary{
 		ChanPoint:         state.FundingOutpoint,
 		RemotePub:         state.IdentityPub,
-		SettledBalance:    btcutil.Amount(500),
-		TimeLockedBalance: btcutil.Amount(10000),
+		SettledBalance:    dcrutil.Amount(500),
+		TimeLockedBalance: dcrutil.Amount(10000),
 		IsPending:         false,
 		CloseType:         CooperativeClose,
 	}
@@ -429,7 +430,7 @@ func TestChannelStateTransition(t *testing.T) {
 		CommitSig: &lnwire.CommitSig{
 			ChanID:    lnwire.ChannelID(key),
 			CommitSig: testSig,
-			HtlcSigs: []*btcec.Signature{
+			HtlcSigs: []*secp256k1.Signature{
 				testSig,
 				testSig,
 			},
@@ -481,11 +482,11 @@ func TestChannelStateTransition(t *testing.T) {
 	// current uncollapsed revocation state to simulate a state transition
 	// by the remote party.
 	channel.RemoteCurrentRevocation = channel.RemoteNextRevocation
-	newPriv, err := btcec.NewPrivateKey(btcec.S256())
+	newPriv, err := secp256k1.GeneratePrivateKey()
 	if err != nil {
 		t.Fatalf("unable to generate key: %v", err)
 	}
-	channel.RemoteNextRevocation = newPriv.PubKey()
+	channel.RemoteNextRevocation = (*secp256k1.PublicKey)(&newPriv.PublicKey)
 	if err := channel.AdvanceCommitChainTail(); err != nil {
 		t.Fatalf("unable to append to revocation log: %v", err)
 	}
@@ -567,8 +568,8 @@ func TestChannelStateTransition(t *testing.T) {
 	closeSummary := &ChannelCloseSummary{
 		ChanPoint:         channel.FundingOutpoint,
 		RemotePub:         channel.IdentityPub,
-		SettledBalance:    btcutil.Amount(500),
-		TimeLockedBalance: btcutil.Amount(10000),
+		SettledBalance:    dcrutil.Amount(500),
+		TimeLockedBalance: dcrutil.Amount(10000),
 		IsPending:         false,
 		CloseType:         ForceClose,
 	}

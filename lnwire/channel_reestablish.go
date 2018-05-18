@@ -3,7 +3,7 @@ package lnwire
 import (
 	"io"
 
-	"github.com/roasbeef/btcd/btcec"
+	"github.com/decred/dcrd/dcrec/secp256k1"
 )
 
 // ChannelReestablish is a message sent between peers that have an existing
@@ -59,7 +59,7 @@ type ChannelReestablish struct {
 
 	// LocalUnrevokedCommitPoint is the commitment point used in the
 	// current un-revoked commitment transaction of the sending party.
-	LocalUnrevokedCommitPoint *btcec.PublicKey
+	LocalUnrevokedCommitPoint *secp256k1.PublicKey
 }
 
 // A compile time check to ensure ChannelReestablish implements the

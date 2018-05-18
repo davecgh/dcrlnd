@@ -13,34 +13,24 @@ import (
 	"testing"
 	"time"
 
-	"github.com/lightninglabs/neutrino"
-	"github.com/lightningnetwork/lnd/chainntnfs"
-	"github.com/ltcsuite/ltcd/btcjson"
-	"github.com/roasbeef/btcd/chaincfg/chainhash"
-	"github.com/roasbeef/btcwallet/walletdb"
+	"github.com/decred/dcrd/chaincfg"
+	"github.com/decred/dcrd/chaincfg/chainhash"
+	"github.com/decred/dcrd/dcrec/secp256k1"
+	"github.com/decred/dcrd/dcrjson"
+	"github.com/decred/dcrd/dcrutil"
+	"github.com/decred/dcrd/rpcclient"
+	"github.com/decred/dcrd/rpctest"
+	"github.com/decred/dcrd/txscript"
+	"github.com/decred/dcrd/wire"
+	"github.com/decred/dcrlnd/chainntnfs"
+	"github.com/decred/dcrwallet/walletdb"
 
-	"github.com/roasbeef/btcd/btcec"
-	"github.com/roasbeef/btcd/chaincfg"
-	"github.com/roasbeef/btcd/integration/rpctest"
-	"github.com/roasbeef/btcd/rpcclient"
-	"github.com/roasbeef/btcd/txscript"
-	"github.com/roasbeef/btcd/wire"
-	"github.com/roasbeef/btcutil"
-
-	// Required to auto-register the bitcoind backed ChainNotifier
+	// Required to auto-register the dcrd backed ChainNotifier
 	// implementation.
-	_ "github.com/lightningnetwork/lnd/chainntnfs/bitcoindnotify"
-
-	// Required to auto-register the btcd backed ChainNotifier
-	// implementation.
-	_ "github.com/lightningnetwork/lnd/chainntnfs/btcdnotify"
-
-	// Required to auto-register the neutrino backed ChainNotifier
-	// implementation.
-	_ "github.com/lightningnetwork/lnd/chainntnfs/neutrinonotify"
+	_ "github.com/decred/dcrlnd/chainntnfs/dcrdnotify"
 
 	// Required to register the boltdb walletdb implementation.
-	_ "github.com/roasbeef/btcwallet/walletdb/bdb"
+	_ "github.com/decred/dcrwallet/walletdb/bdb"
 )
 
 var (
@@ -51,9 +41,9 @@ var (
 		0x1e, 0xb, 0x4c, 0xfd, 0x9e, 0xc5, 0x8c, 0xe9,
 	}
 
-	netParams       = &chaincfg.RegressionNetParams
-	privKey, pubKey = btcec.PrivKeyFromBytes(btcec.S256(), testPrivKey)
-	addrPk, _       = btcutil.NewAddressPubKey(pubKey.SerializeCompressed(),
+	netParams       = &chaincfg.SimNetParams
+	privKey, pubKey = secp256k1.PrivKeyFromBytes(testPrivKey)
+	addrPk, _       = dcrutil.NewAddressPubKey(pubKey.SerializeCompressed(),
 		netParams)
 	testAddr = addrPk.AddressPubKeyHash()
 )
@@ -91,8 +81,8 @@ func waitForMempoolTx(r *rpctest.Harness, txid *chainhash.Hash) error {
 		tx, err = r.Node.GetRawTransaction(txid)
 		if err != nil {
 			switch e := err.(type) {
-			case *btcjson.RPCError:
-				if e.Code == btcjson.ErrRPCNoTxInfo {
+			case *dcrjson.RPCError:
+				if e.Code == dcrjson.ErrRPCNoTxInfo {
 					continue
 				}
 			default:
@@ -161,7 +151,7 @@ func testSingleConfirmationNotification(miner *rpctest.Harness,
 			t.Fatalf("unable to fetch block: %v", err)
 		}
 
-		block := btcutil.NewBlock(msgBlock)
+		block := dcrutil.NewBlock(msgBlock)
 		specifiedTxHash, err := block.TxHash(int(confInfo.TxIndex))
 		if err != nil {
 			t.Fatalf("unable to index into block: %v", err)
@@ -649,7 +639,7 @@ func testTxConfirmedBeforeNtfnRegistration(miner *rpctest.Harness,
 		if err != nil {
 			t.Fatalf("unable to fetch block: %v", err)
 		}
-		block := btcutil.NewBlock(msgBlock)
+		block := dcrutil.NewBlock(msgBlock)
 		specifiedTxHash, err := block.TxHash(int(confInfo.TxIndex))
 		if err != nil {
 			t.Fatalf("unable to index into block: %v", err)
@@ -1301,7 +1291,7 @@ var ntfnTests = []testCase{
 // the interface. Second, an additional case in the switch within the main loop
 // below needs to be added which properly initializes the interface.
 func TestInterfaces(t *testing.T) {
-	// Initialize the harness around a btcd node which will serve as our
+	// Initialize the harness around a dcrd node which will serve as our
 	// dedicated miner to generate blocks, cause re-orgs, etc. We'll set up
 	// this node with a chain length of 125, so we have plentyyy of BTC to
 	// play around with.
@@ -1326,145 +1316,13 @@ func TestInterfaces(t *testing.T) {
 		notifierType := notifierDriver.NotifierType
 
 		switch notifierType {
-
-		case "bitcoind":
-			// Start a bitcoind instance.
-			tempBitcoindDir, err := ioutil.TempDir("", "bitcoind")
-			if err != nil {
-				t.Fatalf("Unable to create temp dir: %v", err)
-			}
-			zmqPath := "ipc:///" + tempBitcoindDir + "/weks.socket"
-			cleanUp1 := func() {
-				os.RemoveAll(tempBitcoindDir)
-			}
-			cleanUp = cleanUp1
-			rpcPort := rand.Int()%(65536-1024) + 1024
-			bitcoind := exec.Command(
-				"bitcoind",
-				"-datadir="+tempBitcoindDir,
-				"-regtest",
-				"-connect="+p2pAddr,
-				"-txindex",
-				"-rpcauth=weks:469e9bb14ab2360f8e226efed5ca6f"+
-					"d$507c670e800a95284294edb5773b05544b"+
-					"220110063096c221be9933c82d38e1",
-				fmt.Sprintf("-rpcport=%d", rpcPort),
-				"-disablewallet",
-				"-zmqpubrawblock="+zmqPath,
-				"-zmqpubrawtx="+zmqPath,
-			)
-			err = bitcoind.Start()
-			if err != nil {
-				cleanUp1()
-				t.Fatalf("Couldn't start bitcoind: %v", err)
-			}
-			cleanUp2 := func() {
-				bitcoind.Process.Kill()
-				bitcoind.Wait()
-				cleanUp1()
-			}
-			cleanUp = cleanUp2
-
-			// Wait for the bitcoind instance to start up.
-			time.Sleep(time.Second)
-
-			// Start the FilteredChainView implementation instance.
-			config := rpcclient.ConnConfig{
-				Host: fmt.Sprintf(
-					"127.0.0.1:%d", rpcPort),
-				User:                 "weks",
-				Pass:                 "weks",
-				DisableAutoReconnect: false,
-				DisableConnectOnNew:  true,
-				DisableTLS:           true,
-				HTTPPostMode:         true,
-			}
-
-			notifier, err = notifierDriver.New(&config, zmqPath,
-				*netParams)
-			if err != nil {
-				t.Fatalf("unable to create %v notifier: %v",
-					notifierType, err)
-			}
-
-		case "btcd":
+		case "dcrd":
 			notifier, err = notifierDriver.New(&rpcConfig)
 			if err != nil {
 				t.Fatalf("unable to create %v notifier: %v",
 					notifierType, err)
 			}
 			cleanUp = func() {}
-
-		case "neutrino":
-			spvDir, err := ioutil.TempDir("", "neutrino")
-			if err != nil {
-				t.Fatalf("unable to create temp dir: %v", err)
-			}
-
-			dbName := filepath.Join(spvDir, "neutrino.db")
-			spvDatabase, err := walletdb.Create("bdb", dbName)
-			if err != nil {
-				t.Fatalf("unable to create walletdb: %v", err)
-			}
-
-			// Create an instance of neutrino connected to the
-			// running btcd instance.
-			spvConfig := neutrino.Config{
-				DataDir:      spvDir,
-				Database:     spvDatabase,
-				ChainParams:  *netParams,
-				ConnectPeers: []string{p2pAddr},
-			}
-			neutrino.WaitForMoreCFHeaders = 250 * time.Millisecond
-			spvNode, err := neutrino.NewChainService(spvConfig)
-			if err != nil {
-				t.Fatalf("unable to create neutrino: %v", err)
-			}
-			spvNode.Start()
-
-			cleanUp = func() {
-				spvNode.Stop()
-				spvDatabase.Close()
-				os.RemoveAll(spvDir)
-			}
-
-			// We'll also wait for the instance to sync up fully to
-			// the chain generated by the btcd instance.
-			for !spvNode.IsCurrent() {
-				time.Sleep(time.Millisecond * 100)
-			}
-
-			notifier, err = notifierDriver.New(spvNode)
-			if err != nil {
-				t.Fatalf("unable to create %v notifier: %v",
-					notifierType, err)
-			}
 		}
-
-		t.Logf("Running ChainNotifier interface tests for: %v", notifierType)
-
-		if err := notifier.Start(); err != nil {
-			t.Fatalf("unable to start notifier %v: %v",
-				notifierType, err)
-		}
-
-		for _, ntfnTest := range ntfnTests {
-			testName := fmt.Sprintf("%v: %v", notifierType,
-				ntfnTest.name)
-
-			success := t.Run(testName, func(t *testing.T) {
-				ntfnTest.test(miner, notifier, t)
-			})
-
-			if !success {
-				break
-			}
-		}
-
-		notifier.Stop()
-		if cleanUp != nil {
-			cleanUp()
-		}
-		cleanUp = nil
 	}
 }

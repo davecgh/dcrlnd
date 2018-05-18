@@ -7,10 +7,10 @@ import (
 	"time"
 
 	"github.com/davecgh/go-spew/spew"
-	"github.com/lightningnetwork/lnd/channeldb"
-	"github.com/lightningnetwork/lnd/lnwire"
-	"github.com/roasbeef/btcd/chaincfg/chainhash"
-	"github.com/roasbeef/btcutil"
+	"github.com/decred/dcrd/chaincfg/chainhash"
+	"github.com/decred/dcrd/dcrutil"
+	"github.com/decred/dcrlnd/channeldb"
+	"github.com/decred/dcrlnd/lnwire"
 )
 
 var (
@@ -58,7 +58,7 @@ func newInvoiceRegistry(cdb *channeldb.DB) *invoiceRegistry {
 // by the passed preimage. Once this invoice is added, subsystems within the
 // daemon add/forward HTLCs are able to obtain the proper preimage required
 // for redemption in the case that we're the final destination.
-func (i *invoiceRegistry) AddDebugInvoice(amt btcutil.Amount, preimage chainhash.Hash) {
+func (i *invoiceRegistry) AddDebugInvoice(amt dcrutil.Amount, preimage chainhash.Hash) {
 	paymentHash := chainhash.Hash(sha256.Sum256(preimage[:]))
 
 	invoice := &channeldb.Invoice{

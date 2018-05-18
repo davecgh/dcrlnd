@@ -5,11 +5,10 @@ import (
 	"io"
 
 	"github.com/go-errors/errors"
-	"github.com/roasbeef/btcd/chaincfg/chainhash"
 )
 
 // Store is an interface which serves as an abstraction over data structure
-// responsible for efficiently storing and restoring of hash secrets by given
+// responsible for efficiently storing and restoring hash secrets by given
 // indexes.
 //
 // Description: The Lightning Network wants a chain of (say 1 million)
@@ -19,14 +18,14 @@ import (
 type Store interface {
 	// LookUp function is used to restore/lookup/fetch the previous secret
 	// by its index.
-	LookUp(uint64) (*chainhash.Hash, error)
+	LookUp(uint64) (*ShaHash, error)
 
 	// AddNextEntry attempts to store the given hash within its internal
 	// storage in an efficient manner.
 	//
 	// NOTE: The hashes derived from the shachain MUST be inserted in the
 	// order they're produced by a shachain.Producer.
-	AddNextEntry(*chainhash.Hash) error
+	AddNextEntry(*ShaHash) error
 
 	// Encode writes a binary serialization of the shachain elements
 	// currently saved by implementation of shachain.Store to the passed
@@ -81,7 +80,7 @@ func NewRevocationStoreFromBytes(r io.Reader) (*RevocationStore, error) {
 			return nil, err
 		}
 
-		var nextHash chainhash.Hash
+		var nextHash ShaHash
 		if _, err := io.ReadFull(r, nextHash[:]); err != nil {
 			return nil, err
 		}
@@ -104,7 +103,7 @@ func NewRevocationStoreFromBytes(r io.Reader) (*RevocationStore, error) {
 // in store we will not able to derive it and function will fail.
 //
 // NOTE: This function is part of the Store interface.
-func (store *RevocationStore) LookUp(v uint64) (*chainhash.Hash, error) {
+func (store *RevocationStore) LookUp(v uint64) (*ShaHash, error) {
 	ind := newIndex(v)
 
 	// Trying to derive the index from one of the existing buckets elements.
@@ -127,7 +126,7 @@ func (store *RevocationStore) LookUp(v uint64) (*chainhash.Hash, error) {
 // they're produced by a shachain.Producer.
 //
 // NOTE: This function is part of the Store interface.
-func (store *RevocationStore) AddNextEntry(hash *chainhash.Hash) error {
+func (store *RevocationStore) AddNextEntry(hash *ShaHash) error {
 	newElement := &element{
 		index: store.index,
 		hash:  *hash,

@@ -3,8 +3,8 @@ package htlcswitch_test
 import (
 	"testing"
 
-	"github.com/lightningnetwork/lnd/htlcswitch"
-	"github.com/lightningnetwork/lnd/lnwire"
+	"github.com/decred/dcrlnd/htlcswitch"
+	"github.com/decred/dcrlnd/lnwire"
 )
 
 func TestCircuitMap(t *testing.T) {

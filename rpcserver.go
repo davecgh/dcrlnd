@@ -20,29 +20,26 @@ import (
 
 	"github.com/boltdb/bolt"
 	"github.com/davecgh/go-spew/spew"
-	"github.com/lightningnetwork/lnd/channeldb"
-	"github.com/lightningnetwork/lnd/htlcswitch"
-	"github.com/lightningnetwork/lnd/lnrpc"
-	"github.com/lightningnetwork/lnd/lnwallet"
-	"github.com/lightningnetwork/lnd/lnwire"
-	"github.com/lightningnetwork/lnd/macaroons"
-	"github.com/lightningnetwork/lnd/routing"
-	"github.com/lightningnetwork/lnd/zpay32"
-	"github.com/roasbeef/btcd/blockchain"
-	"github.com/roasbeef/btcd/btcec"
-	"github.com/roasbeef/btcd/chaincfg"
-	"github.com/roasbeef/btcd/chaincfg/chainhash"
-	"github.com/roasbeef/btcd/txscript"
-	"github.com/roasbeef/btcd/wire"
-	"github.com/roasbeef/btcutil"
-	"github.com/roasbeef/btcwallet/waddrmgr"
+	"github.com/decred/dcrd/blockchain"
+	"github.com/decred/dcrd/chaincfg"
+	"github.com/decred/dcrd/chaincfg/chainhash"
+	"github.com/decred/dcrd/dcrec/secp256k1"
+	"github.com/decred/dcrd/dcrutil"
+	"github.com/decred/dcrd/txscript"
+	"github.com/decred/dcrd/wire"
+	"github.com/decred/dcrlnd/channeldb"
+	"github.com/decred/dcrlnd/htlcswitch"
+	"github.com/decred/dcrlnd/lnrpc"
+	"github.com/decred/dcrlnd/lnwallet"
+	"github.com/decred/dcrlnd/lnwire"
+	"github.com/decred/dcrlnd/macaroons"
+	"github.com/decred/dcrlnd/routing"
+	"github.com/decred/dcrlnd/zpay32"
 	"github.com/tv42/zbase32"
 	"golang.org/x/net/context"
 )
 
 var (
-	defaultAccount uint32 = waddrmgr.DefaultAccountNum
-
 	// roPermissions is a slice of method names that are considered "read-only"
 	// for authorization purposes, all lowercase.
 	roPermissions = []string{
@@ -128,7 +125,7 @@ func (r *rpcServer) Stop() error {
 func addrPairsToOutputs(addrPairs map[string]int64) ([]*wire.TxOut, error) {
 	outputs := make([]*wire.TxOut, 0, len(addrPairs))
 	for addr, amt := range addrPairs {
-		addr, err := btcutil.DecodeAddress(addr, activeNetParams.Params)
+		addr, err := dcrutil.DecodeAddress(addr, activeNetParams.Params)
 		if err != nil {
 			return nil, err
 		}
@@ -219,7 +216,7 @@ func (r *rpcServer) SendCoins(ctx context.Context,
 	}
 
 	rpcsLog.Infof("[sendcoins] addr=%v, amt=%v, sat/byte=%v",
-		in.Addr, btcutil.Amount(in.Amount), int64(feePerByte))
+		in.Addr, dcrutil.Amount(in.Amount), int64(feePerByte))
 
 	paymentMap := map[string]int64{in.Addr: in.Amount}
 	txid, err := r.sendCoinsOnChain(paymentMap, feePerByte)
@@ -381,7 +378,7 @@ func (r *rpcServer) VerifyMessage(ctx context.Context,
 	digest := chainhash.DoubleHashB(in.Msg)
 
 	// RecoverCompact both recovers the pubkey and validates the signature.
-	pubKey, _, err := btcec.RecoverCompact(btcec.S256(), sig, digest)
+	pubKey, _, err := secp256k1.RecoverCompact(sig, digest)
 	if err != nil {
 		return &lnrpc.VerifyMessageResponse{Valid: false}, nil
 	}
@@ -429,7 +426,7 @@ func (r *rpcServer) ConnectPeer(ctx context.Context,
 	if err != nil {
 		return nil, err
 	}
-	pubKey, err := btcec.ParsePubKey(pubkeyHex, btcec.S256())
+	pubKey, err := secp256k1.ParsePubKey(pubkeyHex)
 	if err != nil {
 		return nil, err
 	}
@@ -497,7 +494,7 @@ func (r *rpcServer) DisconnectPeer(ctx context.Context,
 	if err != nil {
 		return nil, fmt.Errorf("unable to decode pubkey bytes: %v", err)
 	}
-	peerPubKey, err := btcec.ParsePubKey(pubKeyBytes, btcec.S256())
+	peerPubKey, err := secp256k1.ParsePubKey(pubKeyBytes)
 	if err != nil {
 		return nil, fmt.Errorf("unable to parse pubkey: %v", err)
 	}
@@ -549,8 +546,8 @@ func (r *rpcServer) OpenChannel(in *lnrpc.OpenChannelRequest,
 			"not active yet")
 	}
 
-	localFundingAmt := btcutil.Amount(in.LocalFundingAmount)
-	remoteInitialBalance := btcutil.Amount(in.PushSat)
+	localFundingAmt := dcrutil.Amount(in.LocalFundingAmount)
+	remoteInitialBalance := dcrutil.Amount(in.PushSat)
 	minHtlc := lnwire.MilliSatoshi(in.MinHtlcMsat)
 
 	// Ensure that the initial balance of the remote party (if pushing
@@ -571,7 +568,7 @@ func (r *rpcServer) OpenChannel(in *lnrpc.OpenChannelRequest,
 			"channel size is: %v", maxFundingAmount)
 	}
 
-	const minChannelSize = btcutil.Amount(6000)
+	const minChannelSize = dcrutil.Amount(6000)
 
 	// Restrict the size of the channel we'll actually open. Atm, we
 	// require the amount to be above 6k satoahis s we currently hard-coded
@@ -585,7 +582,7 @@ func (r *rpcServer) OpenChannel(in *lnrpc.OpenChannelRequest,
 	}
 
 	var (
-		nodePubKey      *btcec.PublicKey
+		nodePubKey      *secp256k1.PublicKey
 		nodePubKeyBytes []byte
 		err             error
 	)
@@ -596,7 +593,7 @@ func (r *rpcServer) OpenChannel(in *lnrpc.OpenChannelRequest,
 	// object so we can easily manipulate it. If this isn't set, then we
 	// expected the TargetPeerId to be set accordingly.
 	if len(in.NodePubkey) != 0 {
-		nodePubKey, err = btcec.ParsePubKey(in.NodePubkey, btcec.S256())
+		nodePubKey, err = secp256k1.ParsePubKey(in.NodePubkey)
 		if err != nil {
 			return err
 		}
@@ -716,13 +713,13 @@ func (r *rpcServer) OpenChannelSync(ctx context.Context,
 	if err != nil {
 		return nil, err
 	}
-	nodepubKey, err := btcec.ParsePubKey(keyBytes, btcec.S256())
+	nodepubKey, err := secp256k1.ParsePubKey(keyBytes)
 	if err != nil {
 		return nil, err
 	}
 
-	localFundingAmt := btcutil.Amount(in.LocalFundingAmount)
-	remoteInitialBalance := btcutil.Amount(in.PushSat)
+	localFundingAmt := dcrutil.Amount(in.LocalFundingAmount)
+	remoteInitialBalance := dcrutil.Amount(in.PushSat)
 	minHtlc := lnwire.MilliSatoshi(in.MinHtlcMsat)
 
 	// Ensure that the initial balance of the remote party (if pushing
@@ -1259,7 +1256,7 @@ func (r *rpcServer) ChannelBalance(ctx context.Context,
 		return nil, err
 	}
 
-	var balance btcutil.Amount
+	var balance dcrutil.Amount
 	for _, channel := range channels {
 		if !channel.IsPending {
 			balance += channel.LocalCommitment.LocalBalance.ToSatoshis()
@@ -1308,7 +1305,7 @@ func (r *rpcServer) PendingChannels(ctx context.Context,
 		// TODO(roasbeef): query for funding tx from wallet, display
 		// that also?
 		localCommitment := pendingChan.LocalCommitment
-		utx := btcutil.NewTx(localCommitment.CommitTx)
+		utx := dcrutil.NewTx(localCommitment.CommitTx)
 		commitBaseWeight := blockchain.GetTransactionWeight(utx)
 		commitWeight := commitBaseWeight + lnwallet.WitnessCommitmentTxWeight
 
@@ -1496,7 +1493,7 @@ func (r *rpcServer) ListChannels(ctx context.Context,
 		// the transaction if it were to be immediately unilaterally
 		// broadcast.
 		localCommit := dbChannel.LocalCommitment
-		utx := btcutil.NewTx(localCommit.CommitTx)
+		utx := dcrutil.NewTx(localCommit.CommitTx)
 		commitBaseWeight := blockchain.GetTransactionWeight(utx)
 		commitWeight := commitBaseWeight + lnwallet.WitnessCommitmentTxWeight
 
@@ -1720,7 +1717,7 @@ func (r *rpcServer) SendPayment(paymentStream lnrpc.Lightning_SendPaymentServer)
 					// specified, construct the payment from
 					// the other fields.
 					p.msat = lnwire.NewMSatFromSatoshis(
-						btcutil.Amount(nextPayment.Amt),
+						dcrutil.Amount(nextPayment.Amt),
 					)
 					p.dest = nextPayment.Dest
 					p.pHash = nextPayment.PaymentHash
@@ -1761,7 +1758,7 @@ func (r *rpcServer) SendPayment(paymentStream lnrpc.Lightning_SendPaymentServer)
 
 			// Parse the details of the payment which include the
 			// pubkey of the destination and the payment amount.
-			destNode, err := btcec.ParsePubKey(p.dest, btcec.S256())
+			destNode, err := secp256k1.ParsePubKey(p.dest)
 			if err != nil {
 				return err
 			}
@@ -1862,7 +1859,7 @@ func (r *rpcServer) SendPaymentSync(ctx context.Context,
 	}
 
 	var (
-		destPub   *btcec.PublicKey
+		destPub   *secp256k1.PublicKey
 		amtMSat   lnwire.MilliSatoshi
 		rHash     [32]byte
 		cltvDelta uint16
@@ -1912,13 +1909,13 @@ func (r *rpcServer) SendPaymentSync(ctx context.Context,
 		if err != nil {
 			return nil, err
 		}
-		destPub, err = btcec.ParsePubKey(pubBytes, btcec.S256())
+		destPub, err = secp256k1.ParsePubKey(pubBytes)
 		if err != nil {
 			return nil, err
 		}
 
 		amtMSat = lnwire.NewMSatFromSatoshis(
-			btcutil.Amount(nextPayment.Amt),
+			dcrutil.Amount(nextPayment.Amt),
 		)
 	}
 
@@ -2014,7 +2011,7 @@ func (r *rpcServer) AddInvoice(ctx context.Context,
 			len(invoice.DescriptionHash), channeldb.MaxPaymentRequestSize)
 	}
 
-	amt := btcutil.Amount(invoice.Value)
+	amt := dcrutil.Amount(invoice.Value)
 	amtMSat := lnwire.NewMSatFromSatoshis(amt)
 	switch {
 	// The value of an invoice MUST NOT be zero.
@@ -2045,7 +2042,7 @@ func (r *rpcServer) AddInvoice(ctx context.Context,
 
 	// If specified, add a fallback address to the payment request.
 	if len(invoice.FallbackAddr) > 0 {
-		addr, err := btcutil.DecodeAddress(invoice.FallbackAddr,
+		addr, err := dcrutil.DecodeAddress(invoice.FallbackAddr,
 			activeNetParams.Params)
 		if err != nil {
 			return nil, fmt.Errorf("invalid fallback address: %v",
@@ -2574,7 +2571,7 @@ func (r *rpcServer) GetNodeInfo(ctx context.Context,
 	if err != nil {
 		return nil, err
 	}
-	pubKey, err := btcec.ParsePubKey(pubKeyBytes, btcec.S256())
+	pubKey, err := secp256k1.ParsePubKey(pubKeyBytes)
 	if err != nil {
 		return nil, err
 	}
@@ -2591,7 +2588,7 @@ func (r *rpcServer) GetNodeInfo(ctx context.Context,
 	// edges to gather some basic statistics about its out going channels.
 	var (
 		numChannels  uint32
-		totalCapcity btcutil.Amount
+		totalCapcity dcrutil.Amount
 	)
 	if err := node.ForEachChannel(nil, func(_ *bolt.Tx, edge *channeldb.ChannelEdgeInfo,
 		_, _ *channeldb.ChannelEdgePolicy) error {
@@ -2653,7 +2650,7 @@ func (r *rpcServer) QueryRoutes(ctx context.Context,
 	if err != nil {
 		return nil, err
 	}
-	pubKey, err := btcec.ParsePubKey(pubKeyBytes, btcec.S256())
+	pubKey, err := secp256k1.ParsePubKey(pubKeyBytes)
 	if err != nil {
 		return nil, err
 	}
@@ -2661,7 +2658,7 @@ func (r *rpcServer) QueryRoutes(ctx context.Context,
 	// Currently, within the bootstrap phase of the network, we limit the
 	// largest payment size allotted to (2^32) - 1 mSAT or 4.29 million
 	// satoshis.
-	amt := btcutil.Amount(in.Amt)
+	amt := dcrutil.Amount(in.Amt)
 	amtMSat := lnwire.NewMSatFromSatoshis(amt)
 	if amtMSat > maxPaymentMSat {
 		return nil, fmt.Errorf("payment of %v is too large, max payment "+
@@ -2727,9 +2724,9 @@ func (r *rpcServer) GetNetworkInfo(ctx context.Context,
 		numNodes             uint32
 		numChannels          uint32
 		maxChanOut           uint32
-		totalNetworkCapacity btcutil.Amount
-		minChannelSize       btcutil.Amount = math.MaxInt64
-		maxChannelSize       btcutil.Amount
+		totalNetworkCapacity dcrutil.Amount
+		minChannelSize       dcrutil.Amount = math.MaxInt64
+		maxChannelSize       dcrutil.Amount
 	)
 
 	// We'll use this map to de-duplicate channels during our traversal.
@@ -2915,7 +2912,7 @@ func marshallTopologyChange(topChange *routing.TopologyChange) *lnrpc.GraphTopol
 	// encodeKey is a simple helper function that converts a live public
 	// key into a hex-encoded version of the compressed serialization for
 	// the public key.
-	encodeKey := func(k *btcec.PublicKey) string {
+	encodeKey := func(k *secp256k1.PublicKey) string {
 		return hex.EncodeToString(k.SerializeCompressed())
 	}
 

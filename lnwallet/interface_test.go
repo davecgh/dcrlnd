@@ -19,27 +19,25 @@ import (
 	"github.com/boltdb/bolt"
 	"github.com/davecgh/go-spew/spew"
 
-	"github.com/lightninglabs/neutrino"
-	"github.com/roasbeef/btcwallet/chain"
-	"github.com/roasbeef/btcwallet/walletdb"
-	_ "github.com/roasbeef/btcwallet/walletdb/bdb"
+	"github.com/decred/dcrwallet/chain"
+	_ "github.com/decred/dcrwallet/walletdb/bdb"
 
-	"github.com/lightningnetwork/lnd/chainntnfs"
-	"github.com/lightningnetwork/lnd/chainntnfs/btcdnotify"
-	"github.com/lightningnetwork/lnd/channeldb"
-	"github.com/lightningnetwork/lnd/lnwallet"
-	"github.com/lightningnetwork/lnd/lnwallet/btcwallet"
-	"github.com/lightningnetwork/lnd/lnwire"
-	"github.com/roasbeef/btcd/btcjson"
-	"github.com/roasbeef/btcd/chaincfg"
-	"github.com/roasbeef/btcd/chaincfg/chainhash"
-	"github.com/roasbeef/btcd/rpcclient"
+	"github.com/decred/dcrd/chaincfg"
+	"github.com/decred/dcrd/chaincfg/chainhash"
+	"github.com/decred/dcrd/dcrec/secp256k1"
+	"github.com/decred/dcrd/dcrjson"
+	"github.com/decred/dcrd/dcrutil"
+	"github.com/decred/dcrd/rpcclient"
+	"github.com/decred/dcrd/rpctest"
+	"github.com/decred/dcrd/txscript"
+	"github.com/decred/dcrd/wire"
 
-	"github.com/roasbeef/btcd/btcec"
-	"github.com/roasbeef/btcd/integration/rpctest"
-	"github.com/roasbeef/btcd/txscript"
-	"github.com/roasbeef/btcd/wire"
-	"github.com/roasbeef/btcutil"
+	"github.com/decred/dcrlnd/chainntnfs"
+	"github.com/decred/dcrlnd/chainntnfs/dcrdnotify"
+	"github.com/decred/dcrlnd/channeldb"
+	"github.com/decred/dcrlnd/lnwallet"
+	"github.com/decred/dcrlnd/lnwallet/dcrwallet"
+	"github.com/decred/dcrlnd/lnwire"
 )
 
 var (
@@ -84,8 +82,8 @@ var (
 	netParams = &chaincfg.RegressionNetParams
 	chainHash = netParams.GenesisHash
 
-	_, alicePub = btcec.PrivKeyFromBytes(btcec.S256(), testHdSeed[:])
-	_, bobPub   = btcec.PrivKeyFromBytes(btcec.S256(), bobsPrivKey)
+	_, alicePub = secp256k1.PrivKeyFromBytes(testHdSeed[:])
+	_, bobPub   = secp256k1.PrivKeyFromBytes(bobsPrivKey)
 
 	// The number of confirmations required to consider any created channel
 	// open.
@@ -105,7 +103,7 @@ func assertProperBalance(t *testing.T, lw *lnwallet.LightningWallet, numConfirms
 	if err != nil {
 		t.Fatalf("unable to query for balance: %v", err)
 	}
-	if balance != btcutil.Amount(amount*1e8) {
+	if balance != dcrutil.Amount(amount*1e8) {
 		t.Fatalf("wallet credits not properly loaded, should have 40BTC, "+
 			"instead have %v", balance)
 	}
@@ -137,14 +135,14 @@ func assertReservationDeleted(res *lnwallet.ChannelReservation, t *testing.T) {
 // function provides a simple way to allow test balance assertions to take fee
 // calculations into account.
 // TODO(bvu): Refactor when dynamic fee estimation is added.
-func calcStaticFee(numHTLCs int) btcutil.Amount {
+func calcStaticFee(numHTLCs int) dcrutil.Amount {
 	const (
-		commitWeight = btcutil.Amount(724)
+		commitWeight = dcrutil.Amount(724)
 		htlcWeight   = 172
-		feePerKw     = btcutil.Amount(250/4) * 1000
+		feePerKw     = dcrutil.Amount(250/4) * 1000
 	)
 	return feePerKw * (commitWeight +
-		btcutil.Amount(htlcWeight*numHTLCs)) / 1000
+		dcrutil.Amount(htlcWeight*numHTLCs)) / 1000
 }
 
 func loadTestCredits(miner *rpctest.Harness, w *lnwallet.LightningWallet,
@@ -163,8 +161,8 @@ func loadTestCredits(miner *rpctest.Harness, w *lnwallet.LightningWallet,
 	if err != nil {
 		return err
 	}
-	expectedBalance += btcutil.Amount(satoshiPerOutput * int64(numOutputs))
-	addrs := make([]btcutil.Address, 0, numOutputs)
+	expectedBalance += dcrutil.Amount(satoshiPerOutput * int64(numOutputs))
+	addrs := make([]dcrutil.Address, 0, numOutputs)
 	for i := 0; i < numOutputs; i++ {
 		// Grab a fresh address from the wallet to house this output.
 		walletAddr, err := w.NewAddress(lnwallet.WitnessPubKey, false)
@@ -248,7 +246,7 @@ func createTestWallet(tempTestDir string, miningNode *rpctest.Harness,
 		FeeEstimator:     lnwallet.StaticFeeEstimator{FeeRate: 10},
 		DefaultConstraints: channeldb.ChannelConstraints{
 			DustLimit:        500,
-			MaxPendingAmount: lnwire.NewMSatFromSatoshis(btcutil.SatoshiPerBitcoin) * 100,
+			MaxPendingAmount: lnwire.NewMSatFromSatoshis(dcrutil.SatoshiPerBitcoin) * 100,
 			ChanReserve:      100,
 			MinHTLC:          400,
 			MaxAcceptedHtlcs: 900,
@@ -276,7 +274,7 @@ func createTestWallet(tempTestDir string, miningNode *rpctest.Harness,
 func testDualFundingReservationWorkflow(miner *rpctest.Harness,
 	alice, bob *lnwallet.LightningWallet, t *testing.T) {
 
-	const fundingAmount = btcutil.Amount(5 * 1e8)
+	const fundingAmount = dcrutil.Amount(5 * 1e8)
 
 	// In this scenario, we'll test a dual funder reservation, with each
 	// side putting in 10 BTC.
@@ -448,7 +446,7 @@ func testFundingTransactionLockedOutputs(miner *rpctest.Harness,
 	alice, _ *lnwallet.LightningWallet, t *testing.T) {
 
 	// Create a single channel asking for 16 BTC total.
-	fundingAmount := btcutil.Amount(8 * 1e8)
+	fundingAmount := dcrutil.Amount(8 * 1e8)
 	feePerWeight, err := alice.Cfg.FeeEstimator.EstimateFeePerWeight(1)
 	if err != nil {
 		t.Fatalf("unable to query fee estimator: %v", err)
@@ -465,7 +463,7 @@ func testFundingTransactionLockedOutputs(miner *rpctest.Harness,
 	// Now attempt to reserve funds for another channel, this time
 	// requesting 900 BTC. We only have around 64BTC worth of outpoints
 	// that aren't locked, so this should fail.
-	amt := btcutil.Amount(900 * 1e8)
+	amt := dcrutil.Amount(900 * 1e8)
 	failedReservation, err := alice.InitChannelReservation(amt, amt, 0,
 		feePerKw, feePerKw, bobPub, bobAddr, chainHash, lnwire.FFAnnounceChannel)
 	if err == nil {
@@ -489,7 +487,7 @@ func testFundingCancellationNotEnoughFunds(miner *rpctest.Harness,
 	feePerKw := feePerWeight * 1000
 
 	// Create a reservation for 44 BTC.
-	fundingAmount := btcutil.Amount(44 * 1e8)
+	fundingAmount := dcrutil.Amount(44 * 1e8)
 	chanReservation, err := alice.InitChannelReservation(fundingAmount,
 		fundingAmount, 0, feePerKw, feePerKw, bobPub, bobAddr, chainHash,
 		lnwire.FFAnnounceChannel)
@@ -634,8 +632,8 @@ func testSingleFunderReservationWorkflow(miner *rpctest.Harness,
 	// First, Alice will Initialize a reservation for a channel with 4 BTC
 	// funded solely by us. We'll also initially push 1 BTC of the channel
 	// towards Bob's side.
-	fundingAmt := btcutil.Amount(4 * 1e8)
-	pushAmt := lnwire.NewMSatFromSatoshis(btcutil.SatoshiPerBitcoin)
+	fundingAmt := dcrutil.Amount(4 * 1e8)
+	pushAmt := lnwire.NewMSatFromSatoshis(dcrutil.AtomsPerCoin)
 	feePerWeight, err := alice.Cfg.FeeEstimator.EstimateFeePerWeight(1)
 	if err != nil {
 		t.Fatalf("unable to query fee estimator: %v", err)
@@ -829,7 +827,7 @@ func testListTransactionDetails(miner *rpctest.Harness,
 
 	// Create 5 new outputs spendable by the wallet.
 	const numTxns = 5
-	const outputAmt = btcutil.SatoshiPerBitcoin
+	const outputAmt = dcrutil.SatoshiPerBitcoin
 	txids := make(map[chainhash.Hash]struct{})
 	for i := 0; i < numTxns; i++ {
 		addr, err := alice.NewAddress(lnwallet.WitnessPubKey, false)
@@ -1014,7 +1012,7 @@ func testTransactionSubscriptions(miner *rpctest.Harness,
 	defer txClient.Cancel()
 
 	const (
-		outputAmt = btcutil.SatoshiPerBitcoin
+		outputAmt = dcrutil.SatoshiPerBitcoin
 		numTxns   = 3
 	)
 	unconfirmedNtfns := make(chan struct{})
@@ -1136,8 +1134,7 @@ func testSignOutputUsingTweaks(r *rpctest.Harness,
 	// we'll generate a commitment pre-image, then derive a revocation key
 	// and single tweak from that.
 	commitPreimage := bytes.Repeat([]byte{2}, 32)
-	commitSecret, commitPoint := btcec.PrivKeyFromBytes(btcec.S256(),
-		commitPreimage)
+	commitSecret, commitPoint := secp256k1.PrivKeyFromBytes(commitPreimage)
 
 	revocationKey := lnwallet.DeriveRevocationPubkey(pubKey, commitPoint)
 	commitTweak := lnwallet.SingleTweakBytes(commitPoint, pubKey)
@@ -1149,7 +1146,7 @@ func testSignOutputUsingTweaks(r *rpctest.Harness,
 	// and the second will use a double tweak.
 	baseKey := pubKey
 	for i := 0; i < 2; i++ {
-		var tweakedKey *btcec.PublicKey
+		var tweakedKey *secp256k1.PublicKey
 		if i == 0 {
 			tweakedKey = tweakedPub
 		} else {
@@ -1158,9 +1155,9 @@ func testSignOutputUsingTweaks(r *rpctest.Harness,
 
 		// Using the given key for the current iteration, we'll
 		// generate a regular p2wkh from that.
-		pubkeyHash := btcutil.Hash160(tweakedKey.SerializeCompressed())
-		keyAddr, err := btcutil.NewAddressWitnessPubKeyHash(pubkeyHash,
-			&chaincfg.RegressionNetParams)
+		pubkeyHash := dcrutil.Hash160(tweakedKey.SerializeCompressed())
+		keyAddr, err := dcrutil.NewAddressWitnessPubKeyHash(pubkeyHash,
+			&chaincfg.SimNetParams)
 		if err != nil {
 			t.Fatalf("unable to create addr: %v", err)
 		}
@@ -1172,7 +1169,7 @@ func testSignOutputUsingTweaks(r *rpctest.Harness,
 		// With the script fully assembled, instruct the wallet to fund
 		// the output with a newly created transaction.
 		newOutput := &wire.TxOut{
-			Value:    btcutil.SatoshiPerBitcoin,
+			Value:    dcrutil.SatoshiPerBitcoin,
 			PkScript: keyScript,
 		}
 		txid, err := alice.SendOutputs([]*wire.TxOut{newOutput}, 10)
@@ -1250,7 +1247,7 @@ func testSignOutputUsingTweaks(r *rpctest.Harness,
 		// the proper private key.
 		vm, err := txscript.NewEngine(keyScript,
 			sweepTx, 0, txscript.StandardVerifyFlags, nil,
-			nil, int64(btcutil.SatoshiPerBitcoin))
+			nil, int64(dcrutil.SatoshiPerBitcoin))
 		if err != nil {
 			t.Fatalf("unable to create engine: %v", err)
 		}
@@ -1361,7 +1358,7 @@ func testReorgWalletBalance(r *rpctest.Harness, w *lnwallet.LightningWallet,
 		// Wait for disconnection
 		timeout := time.After(30 * time.Second)
 		stillConnected := true
-		var peers []btcjson.GetPeerInfoResult
+		var peers []dcrjson.GetPeerInfoResult
 		for stillConnected {
 			// Allow for timeout
 			time.Sleep(100 * time.Millisecond)
@@ -1402,7 +1399,7 @@ func testReorgWalletBalance(r *rpctest.Harness, w *lnwallet.LightningWallet,
 		err = r2.Node.AddNode(r.P2PAddress(), rpcclient.ANAdd)
 		if err != nil {
 			switch err := err.(type) {
-			case *btcjson.RPCError:
+			case *dcrjson.RPCError:
 				if err.Code != -8 {
 					t.Fatalf("unable to connect mining "+
 						"nodes together: %v", err)
@@ -1514,8 +1511,8 @@ func waitForMempoolTx(r *rpctest.Harness, txid *chainhash.Hash) error {
 		tx, err = r.Node.GetRawTransaction(txid)
 		if err != nil {
 			switch e := err.(type) {
-			case *btcjson.RPCError:
-				if e.Code == btcjson.ErrRPCNoTxInfo {
+			case *dcrjson.RPCError:
+				if e.Code == dcrjson.ErrRPCNoTxInfo {
 					continue
 				}
 			default:
@@ -1660,14 +1657,14 @@ func runTests(t *testing.T, walletDriver *lnwallet.WalletDriver,
 
 	walletType := walletDriver.WalletType
 	switch walletType {
-	case "btcwallet":
+	case "dcrwallet":
 		var aliceClient, bobClient chain.Interface
 		switch backEnd {
-		case "btcd":
-			feeEstimator, err = lnwallet.NewBtcdFeeEstimator(
+		case "dcrd":
+			feeEstimator, err = lnwallet.NewDcrdFeeEstimator(
 				rpcConfig, 250)
 			if err != nil {
-				t.Fatalf("unable to create btcd fee estimator: %v",
+				t.Fatalf("unable to create dcrd fee estimator: %v",
 					err)
 			}
 			aliceClient, err = chain.NewRPCClient(netParams,
@@ -1682,108 +1679,6 @@ func runTests(t *testing.T, walletDriver *lnwallet.WalletDriver,
 			if err != nil {
 				t.Fatalf("unable to make chain rpc: %v", err)
 			}
-		case "neutrino":
-			feeEstimator = lnwallet.StaticFeeEstimator{FeeRate: 250}
-			// Set some package-level variable to speed up
-			// operation for tests.
-			neutrino.WaitForMoreCFHeaders = time.Millisecond * 100
-			neutrino.BanDuration = time.Millisecond * 100
-			neutrino.QueryTimeout = time.Millisecond * 500
-			neutrino.QueryNumRetries = 2
-			// Start Alice - open a database, start a neutrino
-			// instance, and initialize a btcwallet driver for it.
-			aliceDB, err := walletdb.Create("bdb",
-				tempTestDirAlice+"/neutrino.db")
-			if err != nil {
-				t.Fatalf("unable to create DB: %v", err)
-			}
-			defer aliceDB.Close()
-			aliceChain, err := neutrino.NewChainService(
-				neutrino.Config{
-					DataDir:     tempTestDirAlice,
-					Database:    aliceDB,
-					Namespace:   []byte("alice"),
-					ChainParams: *netParams,
-					ConnectPeers: []string{
-						miningNode.P2PAddress(),
-					},
-				},
-			)
-			if err != nil {
-				t.Fatalf("unable to make neutrino: %v", err)
-			}
-			aliceChain.Start()
-			defer aliceChain.Stop()
-			aliceClient = chain.NewNeutrinoClient(aliceChain)
-
-			// Start Bob - open a database, start a neutrino
-			// instance, and initialize a btcwallet driver for it.
-			bobDB, err := walletdb.Create("bdb",
-				tempTestDirBob+"/neutrino.db")
-			if err != nil {
-				t.Fatalf("unable to create DB: %v", err)
-			}
-			defer bobDB.Close()
-			bobChain, err := neutrino.NewChainService(
-				neutrino.Config{
-					DataDir:     tempTestDirBob,
-					Database:    bobDB,
-					Namespace:   []byte("bob"),
-					ChainParams: *netParams,
-					ConnectPeers: []string{
-						miningNode.P2PAddress(),
-					},
-				},
-			)
-			if err != nil {
-				t.Fatalf("unable to make neutrino: %v", err)
-			}
-			bobChain.Start()
-			defer bobChain.Stop()
-			bobClient = chain.NewNeutrinoClient(bobChain)
-		case "bitcoind":
-			feeEstimator, err = lnwallet.NewBitcoindFeeEstimator(
-				rpcConfig, 250)
-			if err != nil {
-				t.Fatalf("unable to create bitcoind fee estimator: %v",
-					err)
-			}
-			// Start a bitcoind instance.
-			tempBitcoindDir, err := ioutil.TempDir("", "bitcoind")
-			if err != nil {
-				t.Fatalf("unable to create temp directory: %v", err)
-			}
-			zmqPath := "ipc:///" + tempBitcoindDir + "/weks.socket"
-			defer os.RemoveAll(tempBitcoindDir)
-			rpcPort := rand.Int()%(65536-1024) + 1024
-			bitcoind := exec.Command(
-				"bitcoind",
-				"-datadir="+tempBitcoindDir,
-				"-regtest",
-				"-connect="+miningNode.P2PAddress(),
-				"-txindex",
-				"-rpcauth=weks:469e9bb14ab2360f8e226efed5ca6f"+
-					"d$507c670e800a95284294edb5773b05544b"+
-					"220110063096c221be9933c82d38e1",
-				fmt.Sprintf("-rpcport=%d", rpcPort),
-				"-disablewallet",
-				"-zmqpubrawblock="+zmqPath,
-				"-zmqpubrawtx="+zmqPath,
-			)
-			err = bitcoind.Start()
-			if err != nil {
-				t.Fatalf("couldn't start bitcoind: %v", err)
-			}
-			defer bitcoind.Wait()
-			defer bitcoind.Process.Kill()
-
-			// Start an Alice btcwallet bitcoind back end instance.
-			aliceClient, err = chain.NewBitcoindClient(netParams,
-				fmt.Sprintf("127.0.0.1:%d", rpcPort), "weks",
-				"weks", zmqPath, 100*time.Millisecond)
-			if err != nil {
-				t.Fatalf("couldn't start alice client: %v", err)
-			}
 
 			// Start a Bob btcwallet bitcoind back end instance.
 			bobClient, err = chain.NewBitcoindClient(netParams,
@@ -1796,7 +1691,7 @@ func runTests(t *testing.T, walletDriver *lnwallet.WalletDriver,
 			t.Fatalf("unknown chain driver: %v", backEnd)
 		}
 
-		aliceWalletConfig := &btcwallet.Config{
+		aliceWalletConfig := &dcrwallet.Config{
 			PrivatePass:  []byte("alice-pass"),
 			HdSeed:       aliceHDSeed[:],
 			DataDir:      tempTestDirAlice,
@@ -1806,11 +1701,11 @@ func runTests(t *testing.T, walletDriver *lnwallet.WalletDriver,
 		}
 		aliceWalletController, err = walletDriver.New(aliceWalletConfig)
 		if err != nil {
-			t.Fatalf("unable to create btcwallet: %v", err)
+			t.Fatalf("unable to create alice wallet: %v", err)
 		}
-		aliceSigner = aliceWalletController.(*btcwallet.BtcWallet)
+		aliceSigner = aliceWalletController.(*dcrwallet.DcrWallet)
 
-		bobWalletConfig := &btcwallet.Config{
+		bobWalletConfig := &dcrwallet.Config{
 			PrivatePass:  []byte("bob-pass"),
 			HdSeed:       bobHDSeed[:],
 			DataDir:      tempTestDirBob,
@@ -1820,10 +1715,10 @@ func runTests(t *testing.T, walletDriver *lnwallet.WalletDriver,
 		}
 		bobWalletController, err = walletDriver.New(bobWalletConfig)
 		if err != nil {
-			t.Fatalf("unable to create btcwallet: %v", err)
+			t.Fatalf("unable to create bob wallet: %v", err)
 		}
-		bobSigner = bobWalletController.(*btcwallet.BtcWallet)
-		bio = bobWalletController.(*btcwallet.BtcWallet)
+		bobSigner = bobWalletController.(*dcrwallet.DcrWallet)
+		bio = bobWalletController.(*dcrwallet.DcrWallet)
 	default:
 		t.Fatalf("unknown wallet driver: %v", walletType)
 	}

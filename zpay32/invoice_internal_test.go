@@ -3,7 +3,7 @@ package zpay32
 import (
 	"testing"
 
-	"github.com/lightningnetwork/lnd/lnwire"
+	"github.com/decred/dcrlnd/lnwire"
 )
 
 // TestDecodeAmount ensures that the amount string in the hrp of the Invoice

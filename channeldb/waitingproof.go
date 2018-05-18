@@ -8,8 +8,8 @@ import (
 	"bytes"
 
 	"github.com/boltdb/bolt"
+	"github.com/decred/dcrlnd/lnwire"
 	"github.com/go-errors/errors"
-	"github.com/lightningnetwork/lnd/lnwire"
 )
 
 var (

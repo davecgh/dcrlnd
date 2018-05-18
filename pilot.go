@@ -5,11 +5,11 @@ import (
 	"net"
 
 	"github.com/davecgh/go-spew/spew"
-	"github.com/lightningnetwork/lnd/autopilot"
-	"github.com/lightningnetwork/lnd/lnwire"
-	"github.com/roasbeef/btcd/btcec"
-	"github.com/roasbeef/btcd/wire"
-	"github.com/roasbeef/btcutil"
+	"github.com/decred/dcrd/dcrec/secp256k1"
+	"github.com/decred/dcrd/dcrutil"
+	"github.com/decred/dcrd/wire"
+	"github.com/decred/dcrlnd/autopilot"
+	"github.com/decred/dcrlnd/lnwire"
 )
 
 // chanController is an implementation of the autopilot.ChannelController
@@ -21,8 +21,8 @@ type chanController struct {
 // OpenChannel opens a channel to a target peer, with a capacity of the
 // specified amount. This function should un-block immediately after the
 // funding transaction that marks the channel open has been broadcast.
-func (c *chanController) OpenChannel(target *btcec.PublicKey,
-	amt btcutil.Amount, addrs []net.Addr) error {
+func (c *chanController) OpenChannel(target *secp256k1.PublicKey,
+	amt dcrutil.Amount, addrs []net.Addr) error {
 
 	// We can't establish a channel if no addresses were provided for the
 	// peer.
@@ -110,11 +110,11 @@ func (c *chanController) CloseChannel(chanPoint *wire.OutPoint) error {
 	return nil
 }
 func (c *chanController) SpliceIn(chanPoint *wire.OutPoint,
-	amt btcutil.Amount) (*autopilot.Channel, error) {
+	amt dcrutil.Amount) (*autopilot.Channel, error) {
 	return nil, nil
 }
 func (c *chanController) SpliceOut(chanPoint *wire.OutPoint,
-	amt btcutil.Amount) (*autopilot.Channel, error) {
+	amt dcrutil.Amount) (*autopilot.Channel, error) {
 	return nil, nil
 }
 
@@ -145,7 +145,7 @@ func initAutoPilot(svr *server, cfg *autoPilotConfig) (*autopilot.Agent, error) 
 		Self:           self,
 		Heuristic:      prefAttachment,
 		ChanController: &chanController{svr},
-		WalletBalance: func() (btcutil.Amount, error) {
+		WalletBalance: func() (dcrutil.Amount, error) {
 			return svr.cc.wallet.ConfirmedBalance(1, true)
 		},
 		Graph: autopilot.ChannelGraphFromDatabase(svr.chanDB.ChannelGraph()),

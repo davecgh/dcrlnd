@@ -9,14 +9,14 @@ import (
 	"testing"
 	"time"
 
-	"github.com/lightningnetwork/lnd/channeldb"
-	"github.com/lightningnetwork/lnd/htlcswitch"
-	"github.com/roasbeef/btcd/wire"
-
 	"github.com/davecgh/go-spew/spew"
-	"github.com/lightningnetwork/lightning-onion"
-	"github.com/lightningnetwork/lnd/lnwire"
-	"github.com/roasbeef/btcd/btcec"
+	"github.com/decred/dcrd/dcrec/secp256k1"
+	"github.com/decred/dcrd/wire"
+	"github.com/decred/dcrlnd/channeldb"
+	"github.com/decred/dcrlnd/htlcswitch"
+	"github.com/decred/dcrlnd/lnwire"
+
+	"github.com/lightningnetwork/lightning-onion" // TODO(davec): ok?
 )
 
 type testCtx struct {
@@ -24,7 +24,7 @@ type testCtx struct {
 
 	graph *channeldb.ChannelGraph
 
-	aliases map[string]*btcec.PublicKey
+	aliases map[string]*secp256k1.PublicKey
 
 	chain *mockChain
 
@@ -78,7 +78,7 @@ func createTestCtx(startingHeight uint32, testGraph ...string) (*testCtx, func()
 		err        error
 	)
 
-	aliasMap := make(map[string]*btcec.PublicKey)
+	aliasMap := make(map[string]*secp256k1.PublicKey)
 
 	// If the testGraph isn't set, then we'll create an empty graph to
 	// start out with. Our usage of a variadic parameter allows caller to
@@ -117,7 +117,7 @@ func createTestCtx(startingHeight uint32, testGraph ...string) (*testCtx, func()
 		Graph:     graph,
 		Chain:     chain,
 		ChainView: chainView,
-		SendToSwitch: func(_ *btcec.PublicKey,
+		SendToSwitch: func(_ *secp256k1.PublicKey,
 			_ *lnwire.UpdateAddHTLC, _ *sphinx.Circuit) ([32]byte, error) {
 			return [32]byte{}, nil
 		},
@@ -230,7 +230,7 @@ func TestSendPaymentRouteFailureFallback(t *testing.T) {
 	// router's configuration to ignore the path that has luo ji as the
 	// first hop. This should force the router to instead take the
 	// available two hop path (through satoshi).
-	ctx.router.cfg.SendToSwitch = func(n *btcec.PublicKey,
+	ctx.router.cfg.SendToSwitch = func(n *secp256k1.PublicKey,
 		_ *lnwire.UpdateAddHTLC, _ *sphinx.Circuit) ([32]byte, error) {
 
 		if ctx.aliases["luoji"].IsEqual(n) {
@@ -307,7 +307,7 @@ func TestSendPaymentErrorPathPruning(t *testing.T) {
 	//
 	// TODO(roasbeef): filtering should be intelligent enough so just not
 	// go through satoshi at all at this point.
-	ctx.router.cfg.SendToSwitch = func(n *btcec.PublicKey,
+	ctx.router.cfg.SendToSwitch = func(n *secp256k1.PublicKey,
 		_ *lnwire.UpdateAddHTLC, _ *sphinx.Circuit) ([32]byte, error) {
 
 		if ctx.aliases["luoji"].IsEqual(n) {
@@ -353,7 +353,7 @@ func TestSendPaymentErrorPathPruning(t *testing.T) {
 	// Next, we'll modify the SendToSwitch method to indicate that luo ji
 	// wasn't originally online. This should also halt the send all
 	// together as all paths contain luoji and he can't be reached.
-	ctx.router.cfg.SendToSwitch = func(n *btcec.PublicKey,
+	ctx.router.cfg.SendToSwitch = func(n *secp256k1.PublicKey,
 		_ *lnwire.UpdateAddHTLC, _ *sphinx.Circuit) ([32]byte, error) {
 
 		if ctx.aliases["luoji"].IsEqual(n) {
@@ -380,7 +380,7 @@ func TestSendPaymentErrorPathPruning(t *testing.T) {
 
 	// Finally, we'll modify the SendToSwitch function to indicate that the
 	// roasbeef -> luoji channel has insufficient capacity.
-	ctx.router.cfg.SendToSwitch = func(n *btcec.PublicKey,
+	ctx.router.cfg.SendToSwitch = func(n *secp256k1.PublicKey,
 		_ *lnwire.UpdateAddHTLC, _ *sphinx.Circuit) ([32]byte, error) {
 		if ctx.aliases["luoji"].IsEqual(n) {
 			// We'll first simulate an error from the first
@@ -631,8 +631,8 @@ func TestAddEdgeUnknownVertexes(t *testing.T) {
 	}
 
 	var (
-		pubKey1 *btcec.PublicKey
-		pubKey2 *btcec.PublicKey
+		pubKey1 *secp256k1.PublicKey
+		pubKey2 *secp256k1.PublicKey
 	)
 	node1Bytes := priv1.PubKey().SerializeCompressed()
 	node2Bytes := connectNode.SerializeCompressed()
