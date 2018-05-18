@@ -69,7 +69,8 @@ func (m *mockSigner) SignOutputRaw(tx *wire.MsgTx, signDesc *SignDescriptor) ([]
 	witnessScript := signDesc.WitnessScript
 	privKey := m.key
 
-	if !privKey.PubKey().IsEqual(signDesc.PubKey) {
+	pubKey := (*secp256k1.PublicKey)(&privKey.PublicKey)
+	if !pubKey.IsEqual(signDesc.PubKey) {
 		return nil, fmt.Errorf("incorrect key passed")
 	}
 
@@ -288,10 +289,10 @@ func createTestChannelsWithNotifier(revocationWindow int,
 	aliceKeyPriv, aliceKeyPub := secp256k1.PrivKeyFromBytes(testWalletPrivKey)
 	bobKeyPriv, bobKeyPub := secp256k1.PrivKeyFromBytes(bobsPrivKey)
 
-	channelCapacity := btcutil.Amount(10 * 1e8)
+	channelCapacity := dcrutil.Amount(10 * 1e8)
 	channelBal := channelCapacity / 2
-	aliceDustLimit := btcutil.Amount(200)
-	bobDustLimit := btcutil.Amount(1300)
+	aliceDustLimit := dcrutil.Amount(200)
+	bobDustLimit := dcrutil.Amount(1300)
 	csvTimeoutAlice := uint32(5)
 	csvTimeoutBob := uint32(4)
 
@@ -470,14 +471,14 @@ func createTestChannelsWithNotifier(revocationWindow int,
 // calculations into account.
 //
 // TODO(bvu): Refactor when dynamic fee estimation is added.
-func calcStaticFee(numHTLCs int) btcutil.Amount {
+func calcStaticFee(numHTLCs int) dcrutil.Amount {
 	const (
-		commitWeight = btcutil.Amount(724)
+		commitWeight = dcrutil.Amount(724)
 		htlcWeight   = 172
-		feePerKw     = btcutil.Amount(24/4) * 1000
+		feePerKw     = dcrutil.Amount(24/4) * 1000
 	)
 	return feePerKw * (commitWeight +
-		btcutil.Amount(htlcWeight*numHTLCs)) / 1000
+		dcrutil.Amount(htlcWeight*numHTLCs)) / 1000
 }
 
 // createHTLC is a utility function for generating an HTLC with a given
@@ -498,7 +499,7 @@ func createHTLC(id int, amount lnwire.MilliSatoshi) (*lnwire.UpdateAddHTLC, [32]
 }
 
 func assertOutputExistsByValue(t *testing.T, commitTx *wire.MsgTx,
-	value btcutil.Amount) {
+	value dcrutil.Amount) {
 
 	for _, txOut := range commitTx.TxOut {
 		if txOut.Value == int64(value) {
@@ -533,7 +534,7 @@ func TestSimpleAddSettleWorkflow(t *testing.T) {
 
 	paymentPreimage := bytes.Repeat([]byte{1}, 32)
 	paymentHash := sha256.Sum256(paymentPreimage)
-	htlcAmt := lnwire.NewMSatFromSatoshis(btcutil.SatoshiPerBitcoin)
+	htlcAmt := lnwire.NewMSatFromSatoshis(dcrutil.AtomsPerCoin)
 	htlc := &lnwire.UpdateAddHTLC{
 		PaymentHash: paymentHash,
 		Amount:      htlcAmt,
@@ -731,7 +732,7 @@ func TestSimpleAddSettleWorkflow(t *testing.T) {
 	// 4 BTC. Alice's channel should show 1 BTC sent and Bob's channel
 	// should show 1 BTC received. They should also be at commitment height
 	// two, with the revocation window extended by by 1 (5).
-	mSatTransferred := lnwire.NewMSatFromSatoshis(btcutil.SatoshiPerBitcoin)
+	mSatTransferred := lnwire.NewMSatFromSatoshis(dcrutil.AtomsPerCoin)
 	if aliceChannel.channelState.TotalMSatSent != mSatTransferred {
 		t.Fatalf("alice satoshis sent incorrect %v vs %v expected",
 			aliceChannel.channelState.TotalMSatSent,
@@ -796,7 +797,7 @@ func TestCheckCommitTxSize(t *testing.T) {
 			t.Fatalf("unable to initiate alice force close: %v", err)
 		}
 
-		actualCost := blockchain.GetTransactionWeight(btcutil.NewTx(commitTx))
+		actualCost := blockchain.GetTransactionWeight(dcrutil.NewTx(commitTx))
 		estimatedCost := estimateCommitTxWeight(count, false)
 
 		diff := int(estimatedCost - actualCost)
@@ -882,7 +883,7 @@ func TestCooperativeChannelClosure(t *testing.T) {
 
 	// We'll store with both Alice and Bob creating a new close proposal
 	// with the same fee.
-	aliceFee := btcutil.Amount(aliceChannel.CalcFee(aliceFeeRate))
+	aliceFee := dcrutil.Amount(aliceChannel.CalcFee(aliceFeeRate))
 	aliceSig, err := aliceChannel.CreateCloseProposal(
 		aliceFee, aliceDeliveryScript, bobDeliveryScript,
 	)
@@ -891,7 +892,7 @@ func TestCooperativeChannelClosure(t *testing.T) {
 	}
 	aliceCloseSig := append(aliceSig, byte(txscript.SigHashAll))
 
-	bobFee := btcutil.Amount(bobChannel.CalcFee(bobFeeRate))
+	bobFee := dcrutil.Amount(bobChannel.CalcFee(bobFeeRate))
 	bobSig, err := bobChannel.CreateCloseProposal(
 		bobFee, bobDeliveryScript, aliceDeliveryScript,
 	)
@@ -989,7 +990,7 @@ func TestForceClose(t *testing.T) {
 	// that we've added an additional HTLC to the commitment transaction.
 	totalCommitWeight := CommitWeight + HtlcWeight
 	feePerKw := aliceChannel.channelState.LocalCommitment.FeePerKw
-	commitFee := btcutil.Amount((int64(feePerKw) * totalCommitWeight) / 1000)
+	commitFee := dcrutil.Amount((int64(feePerKw) * totalCommitWeight) / 1000) // TODO(davec): No weight...
 	expectedAmount := (aliceChannel.Capacity / 2) - htlcAmount.ToSatoshis() - commitFee
 	if closeSummary.SelfOutputSignDesc.Output.Value != int64(expectedAmount) {
 		t.Fatalf("alice incorrect output value in SelfOutputSignDesc, "+
@@ -1419,7 +1420,7 @@ func TestHTLCDustLimit(t *testing.T) {
 
 	// The amount of the HTLC should be above Alice's dust limit and below
 	// Bob's dust limit.
-	htlcSat := (btcutil.Amount(500) +
+	htlcSat := (dcrutil.Amount(500) +
 		htlcTimeoutFee(aliceChannel.channelState.LocalCommitment.FeePerKw))
 	htlcAmount := lnwire.NewMSatFromSatoshis(htlcSat)
 
@@ -1857,7 +1858,7 @@ func TestCancelHTLC(t *testing.T) {
 
 	// Add a new HTLC from Alice to Bob, then trigger a new state
 	// transition in order to include it in the latest state.
-	htlcAmt := lnwire.NewMSatFromSatoshis(btcutil.SatoshiPerBitcoin)
+	htlcAmt := lnwire.NewMSatFromSatoshis(dcrutil.AtomsPerCoin)
 
 	var preImage [32]byte
 	copy(preImage[:], bytes.Repeat([]byte{0xaa}, 32))
@@ -1881,7 +1882,7 @@ func TestCancelHTLC(t *testing.T) {
 
 	// With the HTLC committed, Alice's balance should reflect the clearing
 	// of the new HTLC.
-	aliceExpectedBalance := btcutil.Amount(btcutil.SatoshiPerBitcoin*4) -
+	aliceExpectedBalance := dcrutil.Amount(dcrutil.AtomsPerCoin*4) -
 		calcStaticFee(1)
 	if aliceChannel.channelState.LocalCommitment.LocalBalance.ToSatoshis() !=
 		aliceExpectedBalance {
@@ -1926,7 +1927,7 @@ func TestCancelHTLC(t *testing.T) {
 		t.Fatalf("htlc's still active from bob's POV")
 	}
 
-	expectedBalance := btcutil.Amount(btcutil.SatoshiPerBitcoin * 5)
+	expectedBalance := dcrutil.Amount(dcrutil.AtomsPerCoin * 5)
 	if aliceChannel.channelState.LocalCommitment.LocalBalance.ToSatoshis() !=
 		expectedBalance-calcStaticFee(0) {
 
@@ -1972,7 +1973,7 @@ func TestCooperativeCloseDustAdherence(t *testing.T) {
 	aliceFeeRate := uint64(aliceChannel.channelState.LocalCommitment.FeePerKw)
 	bobFeeRate := uint64(bobChannel.channelState.LocalCommitment.FeePerKw)
 
-	setDustLimit := func(dustVal btcutil.Amount) {
+	setDustLimit := func(dustVal dcrutil.Amount) {
 		aliceChannel.channelState.LocalChanCfg.DustLimit = dustVal
 		aliceChannel.channelState.RemoteChanCfg.DustLimit = dustVal
 		bobChannel.channelState.LocalChanCfg.DustLimit = dustVal
@@ -1996,13 +1997,13 @@ func TestCooperativeCloseDustAdherence(t *testing.T) {
 
 	// We'll start be initializing the limit of both Alice and Bob to 10k
 	// satoshis.
-	dustLimit := btcutil.Amount(10000)
+	dustLimit := dcrutil.Amount(10000)
 	setDustLimit(dustLimit)
 
 	// Both sides currently have over 1 BTC settled as part of their
 	// balances. As a result, performing a cooperative closure now result
 	// in both sides having an output within the closure transaction.
-	aliceFee := btcutil.Amount(aliceChannel.CalcFee(aliceFeeRate)) + 1000
+	aliceFee := dcrutil.Amount(aliceChannel.CalcFee(aliceFeeRate)) + 1000
 	aliceSig, err := aliceChannel.CreateCloseProposal(aliceFee,
 		aliceDeliveryScript, bobDeliveryScript)
 	if err != nil {
@@ -2010,7 +2011,7 @@ func TestCooperativeCloseDustAdherence(t *testing.T) {
 	}
 	aliceCloseSig := append(aliceSig, byte(txscript.SigHashAll))
 
-	bobFee := btcutil.Amount(bobChannel.CalcFee(bobFeeRate)) + 1000
+	bobFee := dcrutil.Amount(bobChannel.CalcFee(bobFeeRate)) + 1000
 	bobSig, err := bobChannel.CreateCloseProposal(bobFee,
 		bobDeliveryScript, aliceDeliveryScript)
 	if err != nil {
@@ -2036,7 +2037,7 @@ func TestCooperativeCloseDustAdherence(t *testing.T) {
 
 	// Next we'll modify the current balances and dust limits such that
 	// Bob's current balance is above _below_ his dust limit.
-	aliceBal := lnwire.NewMSatFromSatoshis(btcutil.SatoshiPerBitcoin)
+	aliceBal := lnwire.NewMSatFromSatoshis(dcrutil.AtomsPerCoin)
 	bobBal := lnwire.NewMSatFromSatoshis(250)
 	setBalances(aliceBal, bobBal)
 
@@ -2168,7 +2169,7 @@ func TestUpdateFeeSenderCommits(t *testing.T) {
 	paymentHash := sha256.Sum256(paymentPreimage)
 	htlc := &lnwire.UpdateAddHTLC{
 		PaymentHash: paymentHash,
-		Amount:      btcutil.SatoshiPerBitcoin,
+		Amount:      dcrutil.AtomsPerCoin,
 		Expiry:      uint32(5),
 	}
 
@@ -2183,7 +2184,7 @@ func TestUpdateFeeSenderCommits(t *testing.T) {
 	}
 
 	// Simulate Alice sending update fee message to bob.
-	fee := btcutil.Amount(111)
+	fee := dcrutil.Amount(111)
 	aliceChannel.UpdateFee(fee)
 	bobChannel.ReceiveUpdateFee(fee)
 
@@ -2280,7 +2281,7 @@ func TestUpdateFeeReceiverCommits(t *testing.T) {
 	paymentHash := sha256.Sum256(paymentPreimage)
 	htlc := &lnwire.UpdateAddHTLC{
 		PaymentHash: paymentHash,
-		Amount:      btcutil.SatoshiPerBitcoin,
+		Amount:      dcrutil.AtomsPerCoin,
 		Expiry:      uint32(5),
 	}
 
@@ -2295,7 +2296,7 @@ func TestUpdateFeeReceiverCommits(t *testing.T) {
 	}
 
 	// Simulate Alice sending update fee message to bob
-	fee := btcutil.Amount(111)
+	fee := dcrutil.Amount(111)
 	aliceChannel.UpdateFee(fee)
 	bobChannel.ReceiveUpdateFee(fee)
 
@@ -2416,7 +2417,7 @@ func TestUpdateFeeReceiverSendsUpdate(t *testing.T) {
 
 	// Since Alice is the channel initiator, she should fail when receiving
 	// fee update
-	fee := btcutil.Amount(111)
+	fee := dcrutil.Amount(111)
 	err = aliceChannel.ReceiveUpdateFee(fee)
 	if err == nil {
 		t.Fatalf("expected alice to fail receiving fee update")
@@ -2444,9 +2445,9 @@ func TestUpdateFeeMultipleUpdates(t *testing.T) {
 	defer cleanUp()
 
 	// Simulate Alice sending update fee message to bob.
-	fee1 := btcutil.Amount(111)
-	fee2 := btcutil.Amount(222)
-	fee := btcutil.Amount(333)
+	fee1 := dcrutil.Amount(111)
+	fee2 := dcrutil.Amount(222)
+	fee := dcrutil.Amount(333)
 	aliceChannel.UpdateFee(fee1)
 	aliceChannel.UpdateFee(fee2)
 	aliceChannel.UpdateFee(fee)
@@ -2477,9 +2478,9 @@ func TestUpdateFeeMultipleUpdates(t *testing.T) {
 
 	// Alice sending more fee updates now should not mess up the old fee
 	// they both committed to.
-	fee3 := btcutil.Amount(444)
-	fee4 := btcutil.Amount(555)
-	fee5 := btcutil.Amount(666)
+	fee3 := dcrutil.Amount(444)
+	fee4 := dcrutil.Amount(555)
+	fee5 := dcrutil.Amount(666)
 	aliceChannel.UpdateFee(fee3)
 	aliceChannel.UpdateFee(fee4)
 	aliceChannel.UpdateFee(fee5)
@@ -2555,7 +2556,7 @@ func TestAddHTLCNegativeBalance(t *testing.T) {
 
 	// First, we'll add 5 HTLCs of 1 BTC each to Alice's commitment.
 	const numHTLCs = 4
-	htlcAmt := lnwire.NewMSatFromSatoshis(btcutil.SatoshiPerBitcoin)
+	htlcAmt := lnwire.NewMSatFromSatoshis(dcrutil.AtomsPerCoin)
 	for i := 0; i < numHTLCs; i++ {
 		htlc, _ := createHTLC(i, htlcAmt)
 		if _, err := aliceChannel.AddHTLC(htlc); err != nil {
@@ -2636,7 +2637,7 @@ func TestChanSyncFullySynced(t *testing.T) {
 	var paymentPreimage [32]byte
 	copy(paymentPreimage[:], bytes.Repeat([]byte{1}, 32))
 	paymentHash := sha256.Sum256(paymentPreimage[:])
-	htlcAmt := lnwire.NewMSatFromSatoshis(btcutil.SatoshiPerBitcoin)
+	htlcAmt := lnwire.NewMSatFromSatoshis(dcrutil.AtomsPerCoin)
 	htlc := &lnwire.UpdateAddHTLC{
 		PaymentHash: paymentHash,
 		Amount:      htlcAmt,
@@ -3869,7 +3870,7 @@ func TestChanSyncInvalidLastSecret(t *testing.T) {
 	var paymentPreimage [32]byte
 	copy(paymentPreimage[:], bytes.Repeat([]byte{1}, 32))
 	paymentHash := sha256.Sum256(paymentPreimage[:])
-	htlcAmt := lnwire.NewMSatFromSatoshis(btcutil.SatoshiPerBitcoin)
+	htlcAmt := lnwire.NewMSatFromSatoshis(dcrutil.AtomsPerCoin)
 	htlc := &lnwire.UpdateAddHTLC{
 		PaymentHash: paymentHash,
 		Amount:      htlcAmt,
