@@ -1551,14 +1551,14 @@ func TestTxNotifierConfirmHintCache(t *testing.T) {
 	// the height hints should remain unchanged. This simulates blocks
 	// confirming while the historical dispatch is processing the
 	// registration.
-	hint, err := hintCache.QueryConfirmHint(tx1Hash)
+	_, err = hintCache.QueryConfirmHint(tx1Hash)
 	if err != chainntnfs.ErrConfirmHintNotFound {
 		t.Fatalf("unexpected error when querying for height hint "+
 			"want: %v, got %v",
 			chainntnfs.ErrConfirmHintNotFound, err)
 	}
 
-	hint, err = hintCache.QueryConfirmHint(tx2Hash)
+	_, err = hintCache.QueryConfirmHint(tx2Hash)
 	if err != chainntnfs.ErrConfirmHintNotFound {
 		t.Fatalf("unexpected error when querying for height hint "+
 			"want: %v, got %v",
@@ -1591,7 +1591,7 @@ func TestTxNotifierConfirmHintCache(t *testing.T) {
 	// Now that both notifications are waiting at tip for confirmations,
 	// they should have their height hints updated to the latest block
 	// height.
-	hint, err = hintCache.QueryConfirmHint(tx1Hash)
+	hint, err := hintCache.QueryConfirmHint(tx1Hash)
 	if err != nil {
 		t.Fatalf("unable to query for hint: %v", err)
 	}

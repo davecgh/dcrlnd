@@ -74,10 +74,6 @@ var chanGraphs = []struct {
 // TestPrefAttachmentSelectEmptyGraph ensures that when passed an
 // empty graph, the NodeSores function always returns a score of 0.
 func TestPrefAttachmentSelectEmptyGraph(t *testing.T) {
-	const (
-		maxChanSize = dcrutil.Amount(dcrutil.AtomsPerCoin)
-	)
-
 	prefAttach := NewPrefAttachment()
 
 	// Create a random public key, which we will query to get a score for.

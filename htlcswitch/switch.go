@@ -746,7 +746,7 @@ func (s *Switch) routeAsync(packet *htlcPacket, errChan chan error,
 	case <-linkQuit:
 		return ErrLinkShuttingDown
 	case <-s.quit:
-		return errors.New("Htlc Switch was stopped")
+		return errors.New("htlc switch was stopped")
 	}
 }
 
@@ -780,7 +780,7 @@ func (s *Switch) handleLocalDispatch(pkt *htlcPacket) error {
 		}
 
 		if !link.EligibleToForward() {
-			err := fmt.Errorf("Link %v is not available to forward",
+			err := fmt.Errorf("link %v is not available to forward",
 				pkt.outgoingChanID)
 			log.Error(err)
 
@@ -795,7 +795,7 @@ func (s *Switch) handleLocalDispatch(pkt *htlcPacket) error {
 		}
 
 		if link.Bandwidth() < htlc.Amount {
-			err := fmt.Errorf("Link %v has insufficient capacity: "+
+			err := fmt.Errorf("link %v has insufficient capacity: "+
 				"need %v, has %v", pkt.outgoingChanID,
 				htlc.Amount, link.Bandwidth())
 			log.Error(err)
@@ -1323,7 +1323,7 @@ func (s *Switch) closeCircuit(pkt *htlcPacket) (*PaymentCircuit, error) {
 	// Failed to close circuit because it does not exist. This is likely
 	// because the circuit was already successfully closed.
 	case ErrUnknownCircuit:
-		err := fmt.Errorf("Unable to find target channel "+
+		err := fmt.Errorf("unable to find target channel "+
 			"for HTLC settle/fail: channel ID = %s, "+
 			"HTLC ID = %d", pkt.outgoingChanID,
 			pkt.outgoingHTLCID)

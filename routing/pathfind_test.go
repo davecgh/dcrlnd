@@ -387,8 +387,7 @@ func createTestGraphFromChannels(testChannels []*testChannel) (*testGraphInstanc
 
 	nodeIndex := byte(0)
 	addNodeWithAlias := func(alias string) (*channeldb.LightningNode, error) {
-		keyBytes := make([]byte, 32)
-		keyBytes = []byte{
+		keyBytes := []byte{
 			0, 0, 0, 0, 0, 0, 0, 0,
 			0, 0, 0, 0, 0, 0, 0, 0,
 			0, 0, 0, 0, 0, 0, 0, 0,
@@ -1679,10 +1678,7 @@ func TestPathFindSpecExample(t *testing.T) {
 	defer cleanUp()
 
 	const (
-		aliceFinalCLTV = 10
-		bobFinalCLTV   = 20
-		carolFinalCLTV = 30
-		daveFinalCLTV  = 40
+		daveFinalCLTV = 40
 	)
 
 	// We'll first exercise the scenario of a direct payment from Bob to

@@ -272,13 +272,16 @@ func TestWriteMessageChunking(t *testing.T) {
 	go func() {
 		bytesWritten, err := localConn.Write(largeMessage)
 		if err != nil {
-			t.Fatalf("unable to write message: %v", err)
+			t.Errorf("unable to write message: %v", err)
+			return
+
 		}
 
 		// The entire message should have been written out to the remote
 		// connection.
 		if bytesWritten != len(largeMessage) {
-			t.Fatalf("bytes not fully written!")
+			t.Errorf("bytes not fully written!")
+			return
 		}
 
 		wg.Done()

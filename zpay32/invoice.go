@@ -383,8 +383,7 @@ func (invoice *Invoice) Encode(signer MessageSigner) (string, error) {
 
 	// Add zero bytes to the first timestampBase32Len-len(timestampBase32)
 	// groups, then add the non-zero groups.
-	zeroes := make([]byte, timestampBase32Len-len(timestampBase32),
-		timestampBase32Len-len(timestampBase32))
+	zeroes := make([]byte, timestampBase32Len-len(timestampBase32))
 	_, err := bufferBase32.Write(zeroes)
 	if err != nil {
 		return "", fmt.Errorf("unable to write to buffer: %v", err)
@@ -495,11 +494,6 @@ func validateInvoice(invoice *Invoice) error {
 	// The net must be set.
 	if invoice.Net == nil {
 		return fmt.Errorf("net params not set")
-	}
-
-	// Ensure that if there is an amount set, it is not negative.
-	if invoice.MilliAt != nil && *invoice.MilliAt < 0 {
-		return fmt.Errorf("negative amount: %v", *invoice.MilliAt)
 	}
 
 	// The invoice must contain a payment hash.

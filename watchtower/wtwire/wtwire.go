@@ -91,7 +91,7 @@ func WriteElement(w io.Writer, element interface{}) error {
 		}
 
 	default:
-		return fmt.Errorf("Unknown type in WriteElement: %T", e)
+		return fmt.Errorf("unknown type in WriteElement: %T", e)
 	}
 
 	return nil
@@ -190,7 +190,7 @@ func ReadElement(r io.Reader, element interface{}) error {
 		*e = pubKey
 
 	default:
-		return fmt.Errorf("Unknown type in ReadElement: %T", e)
+		return fmt.Errorf("unknown type in ReadElement: %T", e)
 	}
 
 	return nil

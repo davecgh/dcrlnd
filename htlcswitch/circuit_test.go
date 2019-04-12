@@ -534,7 +534,7 @@ func TestCircuitMapPersistence(t *testing.T) {
 
 	// Check that the circuit map is empty, even after restarting.
 	assertNumCircuitsWithHash(t, circuitMap, hash3, 0)
-	cfg, circuitMap = restartCircuitMap(t, cfg)
+	_, circuitMap = restartCircuitMap(t, cfg)
 	assertNumCircuitsWithHash(t, circuitMap, hash3, 0)
 }
 
@@ -739,7 +739,7 @@ func TestCircuitMapCommitCircuits(t *testing.T) {
 	// to be loaded from disk. Since the keystone was never set, subsequent
 	// attempts to commit the circuit should cause the circuit map to
 	// indicate that the HTLC should be failed back.
-	cfg, circuitMap = restartCircuitMap(t, cfg)
+	_, circuitMap = restartCircuitMap(t, cfg)
 
 	actions, err = circuitMap.CommitCircuits(circuit)
 	if err != nil {
@@ -859,7 +859,7 @@ func TestCircuitMapOpenCircuits(t *testing.T) {
 	//
 	// NOTE: The channel db doesn't have any channel data, so no keystones
 	// will be trimmed.
-	cfg, circuitMap = restartCircuitMap(t, cfg)
+	_, circuitMap = restartCircuitMap(t, cfg)
 
 	// Check that we can still query for the open circuit.
 	circuit2 = circuitMap.LookupOpenCircuit(keystone.OutKey)
@@ -1103,7 +1103,7 @@ func TestCircuitMapTrimOpenCircuits(t *testing.T) {
 
 	// Restart the circuit map one last time to make sure the changes are
 	// persisted.
-	cfg, circuitMap = restartCircuitMap(t, cfg)
+	_, circuitMap = restartCircuitMap(t, cfg)
 
 	assertCircuitsOpenedPostRestart(
 		t,
@@ -1201,7 +1201,7 @@ func TestCircuitMapCloseOpenCircuits(t *testing.T) {
 	//
 	// NOTE: The channel db doesn't have any channel data, so no keystones
 	// will be trimmed.
-	cfg, circuitMap = restartCircuitMap(t, cfg)
+	_, circuitMap = restartCircuitMap(t, cfg)
 
 	// Close the open circuit for the first time, which should succeed.
 	_, err = circuitMap.FailCircuit(circuit.Incoming)
@@ -1259,7 +1259,7 @@ func TestCircuitMapCloseUnopenedCircuit(t *testing.T) {
 
 	// Now, restart the circuit map, which will result in the circuit being
 	// reopened, since no attempt to delete the circuit was made.
-	cfg, circuitMap = restartCircuitMap(t, cfg)
+	_, circuitMap = restartCircuitMap(t, cfg)
 
 	// Close the open circuit for the first time, which should succeed.
 	_, err = circuitMap.FailCircuit(circuit.Incoming)
@@ -1323,7 +1323,7 @@ func TestCircuitMapDeleteUnopenedCircuit(t *testing.T) {
 
 	// Now, restart the circuit map, and check that the deletion survived
 	// the restart.
-	cfg, circuitMap = restartCircuitMap(t, cfg)
+	_, circuitMap = restartCircuitMap(t, cfg)
 
 	circuit2 = circuitMap.LookupCircuit(circuit.Incoming)
 	if circuit2 != nil {
@@ -1396,7 +1396,7 @@ func TestCircuitMapDeleteOpenCircuit(t *testing.T) {
 
 	// Now, restart the circuit map, and check that the deletion survived
 	// the restart.
-	cfg, circuitMap = restartCircuitMap(t, cfg)
+	_, circuitMap = restartCircuitMap(t, cfg)
 
 	circuit2 = circuitMap.LookupOpenCircuit(keystone.OutKey)
 	if circuit2 != nil {

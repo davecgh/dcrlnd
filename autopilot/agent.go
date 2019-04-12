@@ -352,13 +352,9 @@ func mergeNodeMaps(c map[NodeID]Channel,
 // the prescribed channel limit or fund allocation limit.
 func mergeChanState(pendingChans map[NodeID]Channel,
 	activeChans channelState) []Channel {
-
 	numChans := len(pendingChans) + len(activeChans)
 	totalChans := make([]Channel, 0, numChans)
-
-	for _, activeChan := range activeChans.Channels() {
-		totalChans = append(totalChans, activeChan)
-	}
+	totalChans = append(totalChans, activeChans.Channels()...)
 	for _, pendingChan := range pendingChans {
 		totalChans = append(totalChans, pendingChan)
 	}
@@ -577,8 +573,7 @@ func (a *Agent) openChans(availableFunds dcrutil.Amount, numChans uint32,
 	// to open channels to.
 	scores, err = chooseN(numChans, scores)
 	if err != nil {
-		return fmt.Errorf("Unable to make weighted choice: %v",
-			err)
+		return fmt.Errorf("unable to make weighted choice: %v", err)
 	}
 
 	chanCandidates := make(map[NodeID]*AttachmentDirective)

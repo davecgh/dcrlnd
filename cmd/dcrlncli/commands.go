@@ -78,7 +78,7 @@ func actionDecorator(f func(*cli.Context) error) func(*cli.Context) error {
 			if s.Code() == codes.Unimplemented &&
 				(c.Command.Name == "create" ||
 					c.Command.Name == "unlock") {
-				return fmt.Errorf("Wallet is already unlocked")
+				return fmt.Errorf("wallet is already unlocked")
 			}
 
 			// dcrlnd might be active, but not possible to contact
@@ -88,11 +88,10 @@ func actionDecorator(f func(*cli.Context) error) func(*cli.Context) error {
 			// WalletUnlocker server active) and most likely this
 			// is because of an encrypted wallet.
 			if ok && s.Code() == codes.Unimplemented {
-				return fmt.Errorf("Wallet is encrypted. " +
+				return fmt.Errorf("wallet is encrypted. " +
 					"Please unlock using 'dcrlncli unlock', " +
 					"or set password using 'dcrlncli create'" +
-					" if this is the first time starting " +
-					"dcrlnd.")
+					" if this is the first time starting dcrlnd")
 			}
 			return err
 		}
@@ -205,7 +204,7 @@ func sendCoins(ctx *cli.Context) error {
 		addr = args.First()
 		args = args.Tail()
 	default:
-		return fmt.Errorf("Address argument missing")
+		return fmt.Errorf("address argument missing")
 	}
 
 	switch {
@@ -214,7 +213,7 @@ func sendCoins(ctx *cli.Context) error {
 	case args.Present():
 		amt, err = strconv.ParseInt(args.First(), 10, 64)
 	default:
-		return fmt.Errorf("Amount argument missing")
+		return fmt.Errorf("amount argument missing")
 	}
 
 	if err != nil {
@@ -2733,6 +2732,9 @@ func getChanInfo(ctx *cli.Context) error {
 		chanID = ctx.Int64("chan_id")
 	case ctx.Args().Present():
 		chanID, err = strconv.ParseInt(ctx.Args().First(), 10, 64)
+		if err != nil {
+			return err
+		}
 	default:
 		return fmt.Errorf("chan_id argument missing")
 	}

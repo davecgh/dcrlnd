@@ -678,8 +678,7 @@ func (r *ChannelRouter) pruneZombieChans() error {
 
 	err := r.cfg.Graph.ForEachChannel(filterPruneChans)
 	if err != nil {
-		return fmt.Errorf("Unable to filter local zombie "+
-			"chans: %v", err)
+		return fmt.Errorf("unable to filter local zombie chans: %v", err)
 	}
 
 	log.Infof("Pruning %v Zombie Channels", len(chansToPrune))
@@ -691,8 +690,7 @@ func (r *ChannelRouter) pruneZombieChans() error {
 
 		err := r.cfg.Graph.DeleteChannelEdge(&chanToPrune)
 		if err != nil {
-			return fmt.Errorf("Unable to prune zombie "+
-				"chans: %v", err)
+			return fmt.Errorf("unable to prune zombie chans: %v", err)
 		}
 	}
 
@@ -1259,7 +1257,7 @@ func (r *ChannelRouter) fetchChanPoint(
 	numTxns := uint32(len(fundingBlock.Transactions))
 	if chanID.TxIndex > numTxns-1 {
 		return nil, nil, fmt.Errorf("tx_index=#%v is out of range "+
-			"(max_index=%v), network_chan_id=%v\n", chanID.TxIndex,
+			"(max_index=%v), network_chan_id=%v", chanID.TxIndex,
 			numTxns-1, spew.Sdump(chanID))
 	}
 
@@ -2201,16 +2199,15 @@ func (r *ChannelRouter) ForEachNode(cb func(*channeldb.LightningNode) error) err
 // NOTE: This method is part of the ChannelGraphSource interface.
 func (r *ChannelRouter) ForAllOutgoingChannels(cb func(*channeldb.ChannelEdgeInfo,
 	*channeldb.ChannelEdgePolicy) error) error {
+	return r.selfNode.ForEachChannel(nil,
+		func(_ *bolt.Tx, c *channeldb.ChannelEdgeInfo, e,
+			_ *channeldb.ChannelEdgePolicy) error {
+			if e == nil {
+				return fmt.Errorf("channel from self node has no policy")
+			}
 
-	return r.selfNode.ForEachChannel(nil, func(_ *bolt.Tx, c *channeldb.ChannelEdgeInfo,
-		e, _ *channeldb.ChannelEdgePolicy) error {
-
-		if e == nil {
-			return fmt.Errorf("Channel from self node has no policy")
-		}
-
-		return cb(c, e)
-	})
+			return cb(c, e)
+		})
 }
 
 // ForEachChannel is used to iterate over every known edge (channel) within our

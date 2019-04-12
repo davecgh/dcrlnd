@@ -689,7 +689,7 @@ func testFilterBlockDisconnected(node *rpctest.Harness,
 		t.Fatalf("unable to join node on blocks: %v", err)
 	}
 
-	_, newHeight, err = reorgNode.Node.GetBestBlock()
+	_, _, err = reorgNode.Node.GetBestBlock()
 	if err != nil {
 		t.Fatalf("unable to get current height: %v", err)
 	}

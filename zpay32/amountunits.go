@@ -96,7 +96,7 @@ func decodeAmount(amount string) (lnwire.MilliAtom, error) {
 	// interpreted as DCR.
 	char := amount[len(amount)-1]
 	digit := char - '0'
-	if digit >= 0 && digit <= 9 {
+	if digit <= 9 {
 		btc, err := strconv.ParseUint(amount, 10, 64)
 		if err != nil {
 			return 0, err
@@ -127,10 +127,6 @@ func decodeAmount(amount string) (lnwire.MilliAtom, error) {
 // encodeAmount encodes the provided MilliAtom amount using as few characters
 // as possible.
 func encodeAmount(mat lnwire.MilliAtom) (string, error) {
-	if mat < 0 {
-		return "", fmt.Errorf("amount must be positive: %v", mat)
-	}
-
 	// If possible to express in DCR, that will always be the shortest
 	// representation.
 	if mat%mAtPerDcr == 0 {

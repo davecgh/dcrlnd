@@ -113,7 +113,7 @@ func decodeShortChanIDs(r io.Reader) (ShortChanIDEncoding, []ShortChannelID, err
 	}
 
 	if numBytesResp == 0 {
-		return 0, nil, fmt.Errorf("No encoding type specified")
+		return 0, nil, fmt.Errorf("no encoding type specified")
 	}
 
 	queryBody := make([]byte, numBytesResp)

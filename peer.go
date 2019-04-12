@@ -953,7 +953,7 @@ func (p *peer) readHandler() {
 	// We'll stop the timer after a new messages is received, and also
 	// reset it after we process the next message.
 	idleTimer := time.AfterFunc(idleTimeout, func() {
-		err := fmt.Errorf("Peer %s no answer for %s -- disconnecting",
+		err := fmt.Errorf("peer %s no answer for %s -- disconnecting",
 			p, idleTimeout)
 		p.Disconnect(err)
 	})
@@ -1368,6 +1368,10 @@ func (p *peer) writeMessage(msg lnwire.Message) error {
 	// With the temp buffer created and sliced properly (length zero, full
 	// capacity), we'll now encode the message directly into this buffer.
 	n, err := lnwire.WriteMessage(b, msg, 0)
+	if err != nil {
+		return err
+	}
+
 	atomic.AddUint64(&p.bytesSent, uint64(n))
 
 	p.conn.SetWriteDeadline(time.Now().Add(writeMessageTimeout))
@@ -2141,14 +2145,14 @@ func (p *peer) handleInitMsg(msg *lnwire.Init) error {
 
 	unknownLocalFeatures := p.remoteLocalFeatures.UnknownRequiredFeatures()
 	if len(unknownLocalFeatures) > 0 {
-		err := fmt.Errorf("Peer set unknown local feature bits: %v",
+		err := fmt.Errorf("peer set unknown local feature bits: %v",
 			unknownLocalFeatures)
 		return err
 	}
 
 	unknownGlobalFeatures := p.remoteGlobalFeatures.UnknownRequiredFeatures()
 	if len(unknownGlobalFeatures) > 0 {
-		err := fmt.Errorf("Peer set unknown global feature bits: %v",
+		err := fmt.Errorf("peer set unknown global feature bits: %v",
 			unknownGlobalFeatures)
 		return err
 	}
@@ -2186,7 +2190,7 @@ func (p *peer) resendChanSyncMsg(cid lnwire.ChannelID) error {
 		"peer %v", cid, p)
 
 	if err := p.SendMessage(true, c.LastChanSyncMsg); err != nil {
-		return fmt.Errorf("Failed resending channel sync "+
+		return fmt.Errorf("failed resending channel sync "+
 			"message to peer %v: %v", p, err)
 	}
 

@@ -189,9 +189,13 @@ func (s *Server) handleClient(peer Peer) {
 	defer s.removePeer(&id)
 
 	msg, err := s.readMessage(peer)
+	if err != nil {
+		log.Errorf("unable to read message: %v", err)
+		return
+	}
 	remoteInit, ok := msg.(*wtwire.Init)
 	if !ok {
-		log.Errorf("Client %s@%s did not send Init msg as first "+
+		log.Errorf("client %s@%s did not send Init msg as first "+
 			"message", id, peer.RemoteAddr())
 		return
 	}
@@ -202,7 +206,7 @@ func (s *Server) handleClient(peer Peer) {
 
 	err = s.sendMessage(peer, localInit)
 	if err != nil {
-		log.Errorf("Unable to send Init msg to %s: %v", id, err)
+		log.Errorf("unable to send Init msg to %s: %v", id, err)
 		return
 	}
 

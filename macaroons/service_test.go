@@ -45,6 +45,9 @@ func setupTestRootKeyStorage(t *testing.T) string {
 	}
 	defer store.Close()
 	err = store.CreateUnlock(&defaultPw)
+	if err != nil {
+		t.Fatalf("Error setting an encryption key: %v", err)
+	}
 	return tempDir
 }
 
@@ -58,18 +61,18 @@ func TestNewService(t *testing.T) {
 	// Second, create the new service instance, unlock it and pass in a
 	// checker that we expect it to add to the bakery.
 	service, err := macaroons.NewService(tempDir, macaroons.IPLockChecker)
-	defer service.Close()
 	if err != nil {
 		t.Fatalf("Error creating new service: %v", err)
 	}
+	defer service.Close()
 	err = service.CreateUnlock(&defaultPw)
 	if err != nil {
 		t.Fatalf("Error unlocking root key storage: %v", err)
 	}
 
 	// Third, check if the created service can bake macaroons.
-	macaroon, err := service.Oven.NewMacaroon(nil, bakery.LatestVersion,
-		nil, testOperation)
+	macaroon, err := service.Oven.NewMacaroon(context.TODO(),
+		bakery.LatestVersion, nil, testOperation)
 	if err != nil {
 		t.Fatalf("Error creating macaroon from service: %v", err)
 	}
@@ -101,18 +104,18 @@ func TestValidateMacaroon(t *testing.T) {
 	tempDir := setupTestRootKeyStorage(t)
 	defer os.RemoveAll(tempDir)
 	service, err := macaroons.NewService(tempDir, macaroons.IPLockChecker)
-	defer service.Close()
 	if err != nil {
 		t.Fatalf("Error creating new service: %v", err)
 	}
+	defer service.Close()
 	err = service.CreateUnlock(&defaultPw)
 	if err != nil {
 		t.Fatalf("Error unlocking root key storage: %v", err)
 	}
 
 	// Then, create a new macaroon that we can serialize.
-	macaroon, err := service.Oven.NewMacaroon(nil, bakery.LatestVersion,
-		nil, testOperation)
+	macaroon, err := service.Oven.NewMacaroon(context.TODO(),
+		bakery.LatestVersion, nil, testOperation)
 	if err != nil {
 		t.Fatalf("Error creating macaroon from service: %v", err)
 	}

@@ -920,7 +920,7 @@ func (n *TxNotifier) ConnectTip(blockHash *chainhash.Hash, blockHeight uint32,
 	defer n.Unlock()
 
 	if blockHeight != n.currentHeight+1 {
-		return fmt.Errorf("Received blocks out of order: "+
+		return fmt.Errorf("received blocks out of order: "+
 			"current height=%d, new height=%d",
 			n.currentHeight, blockHeight)
 	}
@@ -1143,7 +1143,7 @@ func (n *TxNotifier) DisconnectTip(blockHeight uint32) error {
 	defer n.Unlock()
 
 	if blockHeight != n.currentHeight {
-		return fmt.Errorf("Received blocks out of order: "+
+		return fmt.Errorf("received blocks out of order: "+
 			"current height=%d, disconnected height=%d",
 			n.currentHeight, blockHeight)
 	}

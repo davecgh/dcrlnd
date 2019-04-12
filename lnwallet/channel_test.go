@@ -870,7 +870,6 @@ func TestForceCloseDustOutput(t *testing.T) {
 
 	htlcAmount := lnwire.NewMAtomsFromAtoms(500)
 
-	aliceAmount := aliceChannel.channelState.LocalCommitment.LocalBalance
 	bobAmount := bobChannel.channelState.LocalCommitment.LocalBalance
 
 	// Have Bobs' to-self output be below her dust limit and check
@@ -901,8 +900,7 @@ func TestForceCloseDustOutput(t *testing.T) {
 		t.Fatalf("Can't update the channel state: %v", err)
 	}
 
-	aliceAmount = aliceChannel.channelState.LocalCommitment.LocalBalance
-	bobAmount = bobChannel.channelState.LocalCommitment.RemoteBalance
+	aliceAmount := aliceChannel.channelState.LocalCommitment.LocalBalance
 
 	closeSummary, err := aliceChannel.ForceClose()
 	if err != nil {
@@ -1389,7 +1387,6 @@ func TestStateUpdatePersistence(t *testing.T) {
 	}
 	defer cleanUp()
 
-	const numHtlcs = 4
 	htlcAmt := lnwire.NewMAtomsFromAtoms(5000)
 
 	var fakeOnionBlob [lnwire.OnionPacketSize]byte
@@ -4730,6 +4727,9 @@ func TestChannelUnilateralCloseHtlcResolution(t *testing.T) {
 		aliceChannel.Signer, &inHtlcResolution.SweepSignDesc,
 		sweepTx, preimageBob[:],
 	)
+	if err != nil {
+		t.Fatalf("unable to construct witnesss: %v", err)
+	}
 	sweepTx.TxIn[0].SignatureScript, err = WitnessStackToSigScript(witness)
 	if err != nil {
 		t.Fatalf("unable to generate witness for success "+
@@ -5607,7 +5607,7 @@ func TestChannelRestoreUpdateLogs(t *testing.T) {
 	// and remote commit chains are updated in an async fashion. Since the
 	// remote chain was updated with the latest state (since Bob sent the
 	// revocation earlier) we can keep advancing the remote commit chain.
-	aliceSig, aliceHtlcSigs, err = aliceChannel.SignNextCommitment()
+	aliceSig, _, err = aliceChannel.SignNextCommitment()
 	if err != nil {
 		t.Fatalf("unable to sign commitment: %v", err)
 	}
@@ -6149,16 +6149,14 @@ func TestChannelRestoreCommitHeight(t *testing.T) {
 
 	// A restoration should keep the add heights iof the first HTLC, and
 	// the new HTLC should have a remote add height 2.
-	aliceChannel = restoreAndAssertCommitHeights(t, aliceChannel, false,
-		0, 1, 1)
-	aliceChannel = restoreAndAssertCommitHeights(t, aliceChannel, false,
-		1, 0, 2)
+	restoreAndAssertCommitHeights(t, aliceChannel, false, 0, 1, 1)
+	restoreAndAssertCommitHeights(t, aliceChannel, false, 1, 0, 2)
 
 	err = bobChannel.ReceiveNewCommitment(aliceSig, aliceHtlcSigs)
 	if err != nil {
 		t.Fatalf("unable to receive commitment: %v", err)
 	}
-	bobRevocation, _, err = bobChannel.RevokeCurrentCommitment()
+	_, _, err = bobChannel.RevokeCurrentCommitment()
 	if err != nil {
 		t.Fatalf("unable to revoke commitment: %v", err)
 	}
@@ -6172,13 +6170,13 @@ func TestChannelRestoreCommitHeight(t *testing.T) {
 
 	// Sign a new state for Alice, making Bob have a pending remote
 	// commitment.
-	bobSig, bobHtlcSigs, err = bobChannel.SignNextCommitment()
+	bobSig, _, err = bobChannel.SignNextCommitment()
 	if err != nil {
 		t.Fatalf("unable to sign commitment: %v", err)
 	}
 
 	// The signing of a new commitment for Alice should have given the new
 	// HTLC an add height.
-	bobChannel = restoreAndAssertCommitHeights(t, bobChannel, true, 0, 2, 1)
-	bobChannel = restoreAndAssertCommitHeights(t, bobChannel, true, 1, 2, 2)
+	restoreAndAssertCommitHeights(t, bobChannel, true, 0, 2, 1)
+	restoreAndAssertCommitHeights(t, bobChannel, true, 1, 2, 2)
 }

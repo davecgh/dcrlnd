@@ -41,16 +41,6 @@ import (
 )
 
 var (
-	privPass = []byte("private-test")
-
-	// For simplicity a single priv key controls all of our test outputs.
-	testWalletPrivKey = []byte{
-		0x2b, 0xd8, 0x06, 0xc9, 0x7f, 0x0e, 0x00, 0xaf,
-		0x1a, 0x1f, 0xc3, 0x32, 0x8f, 0xa7, 0x63, 0xa9,
-		0x26, 0x97, 0x23, 0xc8, 0xdb, 0x8f, 0xac, 0x4f,
-		0x93, 0xaf, 0x71, 0xdb, 0x18, 0x6d, 0x6e, 0x90,
-	}
-
 	bobsPrivKey = []byte{
 		0x81, 0xb6, 0x37, 0xd8, 0xfc, 0xd2, 0xc6, 0xda,
 		0x63, 0x59, 0xe6, 0x96, 0x31, 0x13, 0xa1, 0x17,
@@ -807,7 +797,7 @@ func testReservationInitiatorBalanceBelowDustCancel(miner *rpctest.Harness,
 		t.Fatalf("initialization should have failed due to " +
 			"insufficient local amount")
 
-	case !strings.Contains(err.Error(), "Funder balance too small"):
+	case !strings.Contains(err.Error(), "funder balance too small"):
 		t.Fatalf("incorrect error: %v", err)
 	}
 }
@@ -1340,19 +1330,20 @@ func testTransactionSubscriptions(miner *rpctest.Harness,
 			for i := 0; i < numTxns; i++ {
 				txDetail := <-txClient.UnconfirmedTransactions()
 				if txDetail.NumConfirmations != 0 {
-					t.Fatalf("incorrect number of confs, "+
-						"expected %v got %v", 0,
-						txDetail.NumConfirmations)
+					t.Errorf("incorrect number of confs, "+
+						"expected %v got %v", 0, txDetail.NumConfirmations)
+					return
+
 				}
 				if txDetail.Value != outputAmt {
-					t.Fatalf("incorrect output amt, "+
-						"expected %v got %v", outputAmt,
-						txDetail.Value)
+					t.Errorf("incorrect output amt, "+
+						"expected %v got %v", outputAmt, txDetail.Value)
+					return
 				}
 				if txDetail.BlockHash != nil {
-					t.Fatalf("block hash should be nil, "+
-						"is instead %v",
-						txDetail.BlockHash)
+					t.Errorf("block hash should be nil, "+
+						"is instead %v", txDetail.BlockHash)
+					return
 				}
 			}
 
@@ -1413,12 +1404,14 @@ func testTransactionSubscriptions(miner *rpctest.Harness,
 		for i := 0; i < numTxns; i++ {
 			txDetail := <-txClient.ConfirmedTransactions()
 			if txDetail.NumConfirmations != 1 {
-				t.Fatalf("incorrect number of confs for %s, expected %v got %v",
+				t.Errorf("incorrect number of confs for %s, expected %v got %v",
 					txDetail.Hash, 1, txDetail.NumConfirmations)
+				return
 			}
 			if txDetail.Value != outputAmt {
-				t.Fatalf("incorrect output amt, expected %v got %v in txid %s",
+				t.Errorf("incorrect output amt, expected %v got %v in txid %s",
 					outputAmt, txDetail.Value, txDetail.Hash)
+				return
 			}
 		}
 		close(confirmedNtfns)

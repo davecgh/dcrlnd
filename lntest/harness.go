@@ -243,12 +243,12 @@ func (n *NetworkHarness) SetUp(lndArgs []string) error {
 	// Now block until both wallets have fully synced up.
 	expectedBalance := int64(dcrutil.AtomsPerCoin * 10)
 	balReq := &lnrpc.WalletBalanceRequest{}
-	balanceTicker := time.Tick(time.Millisecond * 50)
+	balanceTicker := time.NewTicker(time.Millisecond * 50)
 	balanceTimeout := time.After(time.Second * 30)
 out:
 	for {
 		select {
-		case <-balanceTicker:
+		case <-balanceTicker.C:
 			aliceResp, err := n.Alice.WalletBalance(ctxb, balReq)
 			if err != nil {
 				return err
@@ -798,10 +798,10 @@ func (n *NetworkHarness) OpenChannel(ctx context.Context,
 	// prevents any funding workflows from being kicked off if the chain
 	// isn't yet synced.
 	if err := srcNode.WaitForBlockchainSync(ctx); err != nil {
-		return nil, fmt.Errorf("Unable to sync srcNode chain: %v", err)
+		return nil, fmt.Errorf("unable to sync srcNode chain: %v", err)
 	}
 	if err := destNode.WaitForBlockchainSync(ctx); err != nil {
-		return nil, fmt.Errorf("Unable to sync destNode chain: %v", err)
+		return nil, fmt.Errorf("unable to sync destNode chain: %v", err)
 	}
 
 	minConfs := int32(1)
@@ -866,10 +866,10 @@ func (n *NetworkHarness) OpenPendingChannel(ctx context.Context,
 
 	// Wait until srcNode and destNode have blockchain synced
 	if err := srcNode.WaitForBlockchainSync(ctx); err != nil {
-		return nil, fmt.Errorf("Unable to sync srcNode chain: %v", err)
+		return nil, fmt.Errorf("unable to sync srcNode chain: %v", err)
 	}
 	if err := destNode.WaitForBlockchainSync(ctx); err != nil {
-		return nil, fmt.Errorf("Unable to sync destNode chain: %v", err)
+		return nil, fmt.Errorf("unable to sync destNode chain: %v", err)
 	}
 
 	openReq := &lnrpc.OpenChannelRequest{

@@ -270,7 +270,8 @@ func TestGossipSyncerFilterGossipMsgsAllInMemory(t *testing.T) {
 	go func() {
 		select {
 		case <-time.After(time.Second * 15):
-			t.Fatalf("no query recvd")
+			t.Errorf("no query recvd")
+			return
 
 		case query := <-chanSeries.updateReq:
 
@@ -278,8 +279,9 @@ func TestGossipSyncerFilterGossipMsgsAllInMemory(t *testing.T) {
 			// chan ID 25.
 			expectedID := lnwire.NewShortChanIDFromInt(25)
 			if expectedID != query {
-				t.Fatalf("wrong query id: expected %v, got %v",
+				t.Errorf("wrong query id: expected %v, got %v",
 					expectedID, query)
+				return
 			}
 
 			// If so, then we'll send back the missing update.
@@ -333,14 +335,16 @@ func TestGossipSyncerApplyGossipFilter(t *testing.T) {
 	go func() {
 		select {
 		case <-time.After(time.Second * 15):
-			t.Fatalf("no query recvd")
+			t.Errorf("no query recvd")
+			return
 
 		case query := <-chanSeries.horizonReq:
 			// The syncer should have translated the time range
 			// into the proper star time.
 			if remoteHorizon.FirstTimestamp != uint32(query.start.Unix()) {
-				t.Fatalf("wrong query stamp: expected %v, got %v",
+				t.Errorf("wrong query stamp: expected %v, got %v",
 					remoteHorizon.FirstTimestamp, query.start)
+				return
 			}
 
 			// For this first response, we'll send back an empty
@@ -369,14 +373,16 @@ func TestGossipSyncerApplyGossipFilter(t *testing.T) {
 	go func() {
 		select {
 		case <-time.After(time.Second * 15):
-			t.Fatalf("no query recvd")
+			t.Errorf("no query recvd")
+			return
 
 		case query := <-chanSeries.horizonReq:
 			// The syncer should have translated the time range
 			// into the proper star time.
 			if remoteHorizon.FirstTimestamp != uint32(query.start.Unix()) {
-				t.Fatalf("wrong query stamp: expected %v, got %v",
+				t.Errorf("wrong query stamp: expected %v, got %v",
 					remoteHorizon.FirstTimestamp, query.start)
+				return
 			}
 
 			// For this first response, we'll send back a proper
@@ -493,13 +499,15 @@ func TestGossipSyncerReplyShortChanIDs(t *testing.T) {
 	go func() {
 		select {
 		case <-time.After(time.Second * 15):
-			t.Fatalf("no query recvd")
+			t.Errorf("no query recvd")
+			return
 
 		case chanIDs := <-chanSeries.annReq:
 			// The set of chan ID's should match exactly.
 			if !reflect.DeepEqual(chanIDs, queryChanIDs) {
-				t.Fatalf("wrong chan IDs: expected %v, got %v",
+				t.Errorf("wrong chan IDs: expected %v, got %v",
 					queryChanIDs, chanIDs)
+				return
 			}
 
 			// If they do, then we'll send back a response with
@@ -581,12 +589,14 @@ func TestGossipSyncerReplyChanRangeQuery(t *testing.T) {
 	go func() {
 		select {
 		case <-time.After(time.Second * 15):
-			t.Fatalf("no query recvd")
+			t.Errorf("no query recvd")
+			return
 
 		case filterReq := <-chanSeries.filterRangeReqs:
 			// We should be querying for block 100 to 150.
 			if filterReq.startHeight != 100 && filterReq.endHeight != 150 {
-				t.Fatalf("wrong height range: %v", spew.Sdump(filterReq))
+				t.Errorf("wrong height range: %v", spew.Sdump(filterReq))
+				return
 			}
 
 			// If the proper request was sent, then we'll respond
@@ -670,13 +680,15 @@ func TestGossipSyncerReplyChanRangeQueryNoNewChans(t *testing.T) {
 	go func() {
 		select {
 		case <-time.After(time.Second * 15):
-			t.Fatalf("no query recvd")
+			t.Errorf("no query recvd")
+			return
 
 		case filterReq := <-chanSeries.filterRangeReqs:
 			// We should be querying for block 100 to 150.
 			if filterReq.startHeight != 100 && filterReq.endHeight != 150 {
-				t.Fatalf("wrong height range: %v",
+				t.Errorf("wrong height range: %v",
 					spew.Sdump(filterReq))
+				return
 			}
 
 			// If the proper request was sent, then we'll respond
@@ -806,14 +818,16 @@ func TestGossipSyncerProcessChanRangeReply(t *testing.T) {
 	go func() {
 		select {
 		case <-time.After(time.Second * 15):
-			t.Fatalf("no query recvd")
+			t.Errorf("no query recvd")
+			return
 
 		case req := <-chanSeries.filterReq:
 			// We should get a request for the entire range of short
 			// chan ID's.
 			if !reflect.DeepEqual(expectedReq, req) {
-				t.Fatalf("wrong request: expected %v, got %v",
+				t.Errorf("wrong request: expected %v, got %v",
 					expectedReq, req)
+				return
 			}
 
 			// We'll send back only the last two to simulate filtering.
@@ -842,14 +856,16 @@ func TestGossipSyncerProcessChanRangeReply(t *testing.T) {
 	go func() {
 		select {
 		case <-time.After(time.Second * 15):
-			t.Fatalf("no query recvd")
+			t.Errorf("no query recvd")
+			return
 
 		case req := <-chanSeries.filterReq:
 			// We should get a request for the entire range of short
 			// chan ID's.
 			if !reflect.DeepEqual(expectedReq[2], req[0]) {
-				t.Fatalf("wrong request: expected %v, got %v",
+				t.Errorf("wrong request: expected %v, got %v",
 					expectedReq[2], req[0])
+				return
 			}
 
 			// We'll send back only the last two to simulate filtering.

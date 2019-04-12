@@ -2532,7 +2532,7 @@ func TestFundingManagerRejectPush(t *testing.T) {
 
 	// Assert Bob responded with an ErrNonZeroPushAmount error.
 	err := assertFundingMsgSent(t, bob.msgChan, "Error").(*lnwire.Error)
-	if "Non-zero push amounts are disabled" != string(err.Data) {
+	if string(err.Data) != lnwallet.ErrNonZeroPushAmount().Error() {
 		t.Fatalf("expected ErrNonZeroPushAmount error, got \"%v\"",
 			string(err.Data))
 	}

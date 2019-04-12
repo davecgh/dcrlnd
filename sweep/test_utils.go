@@ -154,7 +154,7 @@ func (m *MockNotifier) RegisterBlockEpochNtfn(
 	log.Tracef("Mock block ntfn registered")
 
 	m.mutex.Lock()
-	epochChan := make(chan *chainntnfs.BlockEpoch, 0)
+	epochChan := make(chan *chainntnfs.BlockEpoch)
 	bestHeight := int32(0)
 	if bestBlock != nil {
 		bestHeight = bestBlock.Height

@@ -350,7 +350,7 @@ func (d *DNSSeedBootstrapper) fallBackSRVLookup(soaShim string,
 
 	// If the message response code was not the success code, fail.
 	if resp.Rcode != dns.RcodeSuccess {
-		return nil, fmt.Errorf("Unsuccessful SRV request, "+
+		return nil, fmt.Errorf("unsuccessful SRV request, "+
 			"received: %v", resp.Rcode)
 	}
 
@@ -405,7 +405,7 @@ search:
 				// If the host of the secondary seed is blank,
 				// then we'll bail here as we can't proceed.
 				if dnsSeedTuple[1] == "" {
-					return nil, fmt.Errorf("Secondary seed is blank")
+					return nil, fmt.Errorf("secondary seed is blank")
 				}
 
 				// If we get an error when trying to query via

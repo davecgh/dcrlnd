@@ -483,6 +483,9 @@ func migratePruneEdgeUpdateIndex(tx *bolt.Tx) error {
 	// already exist given the assumption that the buckets above do as
 	// well.
 	edgeIndex, err := edges.CreateBucketIfNotExists(edgeIndexBucket)
+	if err != nil {
+		return err
+	}
 	if edgeIndex == nil {
 		return fmt.Errorf("unable to create/fetch edge index " +
 			"bucket")

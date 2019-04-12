@@ -881,8 +881,7 @@ func (d *AuthenticatedGossiper) resendAnnounceSignatures() error {
 
 			return bucket.Delete(t.dbKey[:])
 		}); err != nil {
-			return fmt.Errorf("Failed deleting message "+
-				"from database: %v", err)
+			return fmt.Errorf("failed deleting message from database: %v", err)
 		}
 		return nil
 	}
@@ -1270,8 +1269,6 @@ func (d *AuthenticatedGossiper) PruneSyncState(peer *secp256k1.PublicKey) {
 	syncer.Stop()
 
 	delete(d.peerSyncers, vertex)
-
-	return
 }
 
 // isRecentlyRejectedMsg returns true if we recently rejected a message, and
@@ -1657,7 +1654,7 @@ func (d *AuthenticatedGossiper) processNetworkAnnouncement(
 		// We'll ignore any channel announcements that target any chain
 		// other than the set of chains we know of.
 		if !bytes.Equal(msg.ChainHash[:], d.cfg.ChainHash[:]) {
-			err := fmt.Errorf("Ignoring ChannelAnnouncement from "+
+			err := fmt.Errorf("ignoring ChannelAnnouncement from "+
 				"chain=%v, gossiper on chain=%v", msg.ChainHash,
 				d.cfg.ChainHash)
 			log.Errorf(err.Error())
@@ -1806,9 +1803,8 @@ func (d *AuthenticatedGossiper) processNetworkAnnouncement(
 		var channelUpdates []*networkMsg
 
 		d.pChanUpdMtx.Lock()
-		for _, cu := range d.prematureChannelUpdates[shortChanID] {
-			channelUpdates = append(channelUpdates, cu)
-		}
+		channelUpdates = append(channelUpdates,
+			d.prematureChannelUpdates[shortChanID]...)
 
 		// Now delete the premature ChannelUpdates, since we added them
 		// all to the queue of network messages.
@@ -1871,7 +1867,7 @@ func (d *AuthenticatedGossiper) processNetworkAnnouncement(
 		// We'll ignore any channel announcements that target any chain
 		// other than the set of chains we know of.
 		if !bytes.Equal(msg.ChainHash[:], d.cfg.ChainHash[:]) {
-			err := fmt.Errorf("Ignoring ChannelUpdate from "+
+			err := fmt.Errorf("ignoring ChannelUpdate from "+
 				"chain=%v, gossiper on chain=%v", msg.ChainHash,
 				d.cfg.ChainHash)
 			log.Errorf(err.Error())

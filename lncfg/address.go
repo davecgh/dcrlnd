@@ -57,10 +57,10 @@ func EnforceSafeAuthentication(addrs []net.Addr, macaroonsActive bool) error {
 		}
 
 		if !macaroonsActive {
-			return fmt.Errorf("Detected RPC server listening on "+
+			return fmt.Errorf("detected RPC server listening on "+
 				"publicly reachable interface %v with "+
 				"authentication disabled! Refusing to start "+
-				"with --no-macaroons specified.", addr)
+				"with --no-macaroons specified", addr)
 		}
 	}
 

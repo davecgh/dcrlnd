@@ -411,7 +411,7 @@ func WriteElement(w io.Writer, element interface{}) error {
 		}
 
 	default:
-		return fmt.Errorf("Unknown type in WriteElement: %T", e)
+		return fmt.Errorf("unknown type in WriteElement: %T", e)
 	}
 
 	return nil
@@ -800,14 +800,14 @@ func ReadElement(r io.Reader, element interface{}) error {
 
 		var addrBytes [34]byte
 		if length > 34 {
-			return fmt.Errorf("Cannot read %d bytes into addrBytes", length)
+			return fmt.Errorf("cannot read %d bytes into addrBytes", length)
 		}
 		if _, err = io.ReadFull(r, addrBytes[:length]); err != nil {
 			return err
 		}
 		*e = addrBytes[:length]
 	default:
-		return fmt.Errorf("Unknown type in ReadElement: %T", e)
+		return fmt.Errorf("unknown type in ReadElement: %T", e)
 	}
 
 	return nil

@@ -9,7 +9,7 @@ import (
 	"sync/atomic"
 
 	"github.com/decred/dcrlnd/chainntnfs"
-	"github.com/decred/lightning-onion"
+	sphinx "github.com/decred/lightning-onion"
 	bolt "go.etcd.io/bbolt"
 )
 
@@ -93,7 +93,7 @@ func (d *DecayedLog) Start() error {
 	// Open the boltdb for use.
 	var err error
 	if d.db, err = bolt.Open(d.dbPath, dbPermissions, nil); err != nil {
-		return fmt.Errorf("Could not open boltdb: %v", err)
+		return fmt.Errorf("could not open boltdb: %v", err)
 	}
 
 	// Initialize the primary buckets used by the decayed log.
@@ -105,7 +105,7 @@ func (d *DecayedLog) Start() error {
 	if d.notifier != nil {
 		epochClient, err := d.notifier.RegisterBlockEpochNtfn(nil)
 		if err != nil {
-			return fmt.Errorf("Unable to register for epoch "+
+			return fmt.Errorf("unable to register for epoch "+
 				"notifications: %v", err)
 		}
 

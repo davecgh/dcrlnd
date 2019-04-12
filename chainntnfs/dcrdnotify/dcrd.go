@@ -28,7 +28,7 @@ var (
 	// ErrChainNotifierShuttingDown is used when we are trying to
 	// measure a spend notification when notifier is already stopped.
 	ErrChainNotifierShuttingDown = errors.New("chainntnfs: system interrupt " +
-		"while attempting to register for spend notification.")
+		"while attempting to register for spend notification")
 )
 
 // TODO(roasbeef): generalize struct below:
@@ -455,7 +455,7 @@ func (n *DcrdNotifier) historicalConfDetails(txid *chainhash.Hash,
 	// Unexpected txStatus returned.
 	default:
 		return nil, txStatus,
-			fmt.Errorf("Got unexpected txConfStatus: %v", txStatus)
+			fmt.Errorf("got unexpected txConfStatus: %v", txStatus)
 	}
 
 	return txConf, txStatus, nil
@@ -1004,7 +1004,7 @@ func (n *DcrdNotifier) RegisterBlockEpochNtfn(
 		reg.epochQueue.Stop()
 
 		return nil, errors.New("chainntnfs: system interrupt while " +
-			"attempting to register for block epoch notification.")
+			"attempting to register for block epoch notification")
 	case n.notificationRegistry <- reg:
 		return &chainntnfs.BlockEpochEvent{
 			Epochs: reg.epochChan,

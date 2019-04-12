@@ -841,7 +841,7 @@ func TestChannelArbitratorPersistence(t *testing.T) {
 		failLog:   true,
 	}
 
-	chanArb, resolved, err := createTestChannelArbitrator(log)
+	chanArb, _, err := createTestChannelArbitrator(log)
 	if err != nil {
 		t.Fatalf("unable to create ChannelArbitrator: %v", err)
 	}
@@ -873,7 +873,7 @@ func TestChannelArbitratorPersistence(t *testing.T) {
 	chanArb.Stop()
 
 	// Create a new arbitrator with the same log.
-	chanArb, resolved, err = createTestChannelArbitrator(log)
+	chanArb, _, err = createTestChannelArbitrator(log)
 	if err != nil {
 		t.Fatalf("unable to create ChannelArbitrator: %v", err)
 	}
@@ -904,7 +904,7 @@ func TestChannelArbitratorPersistence(t *testing.T) {
 	chanArb.Stop()
 
 	// Create yet another arbitrator with the same log.
-	chanArb, resolved, err = createTestChannelArbitrator(log)
+	chanArb, _, err = createTestChannelArbitrator(log)
 	if err != nil {
 		t.Fatalf("unable to create ChannelArbitrator: %v", err)
 	}
@@ -936,7 +936,7 @@ func TestChannelArbitratorPersistence(t *testing.T) {
 
 	// Create a new arbitrator, and now make fetching resolutions succeed.
 	log.failFetch = nil
-	chanArb, resolved, err = createTestChannelArbitrator(log)
+	chanArb, resolved, err := createTestChannelArbitrator(log)
 	if err != nil {
 		t.Fatalf("unable to create ChannelArbitrator: %v", err)
 	}
@@ -1030,7 +1030,7 @@ func TestChannelArbitratorCommitFailure(t *testing.T) {
 			failCommitState: test.expectedStates[0],
 		}
 
-		chanArb, resolved, err := createTestChannelArbitrator(log)
+		chanArb, _, err := createTestChannelArbitrator(log)
 		if err != nil {
 			t.Fatalf("unable to create ChannelArbitrator: %v", err)
 		}
@@ -1070,7 +1070,7 @@ func TestChannelArbitratorCommitFailure(t *testing.T) {
 
 		// Start the arbitrator again, with IsPendingClose reporting
 		// the channel closed in the database.
-		chanArb, resolved, err = createTestChannelArbitrator(log)
+		chanArb, resolved, err := createTestChannelArbitrator(log)
 		if err != nil {
 			t.Fatalf("unable to create ChannelArbitrator: %v", err)
 		}

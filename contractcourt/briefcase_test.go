@@ -359,6 +359,9 @@ func TestContractInsertionRetrieval(t *testing.T) {
 		t.Fatalf("unable to wipe log: %v", err)
 	}
 	diskResolvers, err = testLog.FetchUnresolvedContracts()
+	if err != nil {
+		t.Fatalf("unable to fetch unresolved contracts: %v", err)
+	}
 	if len(diskResolvers) != 0 {
 		t.Fatalf("no resolvers should be found, instead %v were",
 			len(diskResolvers))
@@ -686,7 +689,7 @@ func TestChainActionStorage(t *testing.T) {
 		t.Fatalf("unable to wipe log: %v", err)
 	}
 	actions, err := testLog.FetchChainActions()
-	if len(actions) != 0 {
+	if len(actions) != 0 && err != nil {
 		t.Fatalf("expected no chain actions, instead found: %v",
 			len(actions))
 	}
@@ -739,6 +742,9 @@ func TestStateMutation(t *testing.T) {
 	// If we try to query for the state again, we should get the default
 	// state again.
 	arbState, err = testLog.CurrentState()
+	if err != nil {
+		t.Fatalf("unable to fetch current arbitrator state: %v", err)
+	}
 	if arbState != StateDefault {
 		t.Fatalf("state mismatch: expected %v, got %v", StateDefault,
 			arbState)

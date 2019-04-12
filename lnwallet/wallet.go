@@ -911,7 +911,6 @@ func (l *LightningWallet) handleSingleContribution(req *addSingleContributionMsg
 	chanState.RemoteCurrentRevocation = theirContribution.FirstCommitmentPoint
 
 	req.err <- nil
-	return
 }
 
 // openChanDetails contains a "finalized" channel which can be considered
@@ -1389,7 +1388,7 @@ func coinSelect(feeRate AtomPerKByte, amt dcrutil.Amount,
 			case PubKeyHash:
 				sizeEstimate.AddP2PKHInput()
 			default:
-				return nil, 0, fmt.Errorf("Unsupported address type: %v",
+				return nil, 0, fmt.Errorf("unsupported address type: %v",
 					utxo.AddressType)
 			}
 		}

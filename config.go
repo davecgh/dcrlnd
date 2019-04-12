@@ -109,14 +109,6 @@ type chainConfig struct {
 	TimeLockDelta       uint32           `long:"timelockdelta" description:"The CLTV delta we will subtract from a forwarded HTLC's timelock value"`
 }
 
-type neutrinoConfig struct {
-	AddPeers     []string      `short:"a" long:"addpeer" description:"Add a peer to connect with at startup"`
-	ConnectPeers []string      `long:"connect" description:"Connect only to the specified peers at startup"`
-	MaxPeers     int           `long:"maxpeers" description:"Max number of inbound and outbound peers"`
-	BanDuration  time.Duration `long:"banduration" description:"How long to ban misbehaving peers.  Valid time units are {s, m, h}.  Minimum 1 second"`
-	BanThreshold uint32        `long:"banthreshold" description:"Maximum allowed ban score before disconnecting and banning misbehaving peers."`
-}
-
 type dcrdConfig struct {
 	Dir        string `long:"dir" description:"The base directory that contains the node's data, logs, configuration file, etc."`
 	RPCHost    string `long:"rpchost" description:"The daemon's rpc listening address. If a port is omitted, then the default port for the selected chain parameters will be used."`
@@ -797,8 +789,7 @@ func loadConfig() (*config, error) {
 	// Ensure that the specified minimum backoff is below or equal to the
 	// maximum backoff.
 	if cfg.MinBackoff > cfg.MaxBackoff {
-		return nil, fmt.Errorf("maxbackoff must be greater than " +
-			"minbackoff")
+		return nil, fmt.Errorf("maxbackoff must be greater than minbackoff")
 	}
 
 	// Finally, ensure that the user's color is correctly formatted,
@@ -806,7 +797,7 @@ func loadConfig() (*config, error) {
 	// the wallet.
 	_, err = parseHexColor(cfg.Color)
 	if err != nil {
-		return nil, fmt.Errorf("Unable to parse node color: %v", err)
+		return nil, fmt.Errorf("unable to parse node color: %v", err)
 	}
 
 	// Warn about missing config file only after all other configuration is
@@ -854,7 +845,7 @@ func parseAndSetDebugLevels(debugLevel string) error {
 	if !strings.Contains(debugLevel, ",") && !strings.Contains(debugLevel, "=") {
 		// Validate debug log level.
 		if !validLogLevel(debugLevel) {
-			str := "The specified debug level [%v] is invalid"
+			str := "the specified debug level [%v] is invalid"
 			return fmt.Errorf(str, debugLevel)
 		}
 
@@ -868,7 +859,7 @@ func parseAndSetDebugLevels(debugLevel string) error {
 	// issues and update the log levels accordingly.
 	for _, logLevelPair := range strings.Split(debugLevel, ",") {
 		if !strings.Contains(logLevelPair, "=") {
-			str := "The specified debug level contains an invalid " +
+			str := "the specified debug level contains an invalid " +
 				"subsystem/level pair [%v]"
 			return fmt.Errorf(str, logLevelPair)
 		}
@@ -879,14 +870,14 @@ func parseAndSetDebugLevels(debugLevel string) error {
 
 		// Validate subsystem.
 		if _, exists := subsystemLoggers[subsysID]; !exists {
-			str := "The specified subsystem [%v] is invalid -- " +
+			str := "the specified subsystem [%v] is invalid -- " +
 				"supported subsystems %v"
 			return fmt.Errorf(str, subsysID, supportedSubsystems())
 		}
 
 		// Validate log level.
 		if !validLogLevel(logLevel) {
-			str := "The specified debug level [%v] is invalid"
+			str := "the specified debug level [%v] is invalid"
 			return fmt.Errorf(str, logLevel)
 		}
 

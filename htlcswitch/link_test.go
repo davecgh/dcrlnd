@@ -1579,7 +1579,6 @@ func newSingleLinkTestHarness(chanAmt, chanReserve dcrutil.Amount) (
 		MaxFeeUpdateTimeout: 40 * time.Minute,
 	}
 
-	const startingHeight = 100
 	aliceLink := NewChannelLink(aliceCfg, aliceChannel)
 	start := func() error {
 		return aliceSwitch.AddLink(aliceLink)
@@ -1898,7 +1897,7 @@ func TestChannelLinkBandwidthConsistency(t *testing.T) {
 
 	// Next, we'll add another HTLC initiated by the switch (of the same
 	// amount as the prior one).
-	invoice, htlc, err = generatePayment(htlcAmt, htlcAmt, 5, mockBlob)
+	_, htlc, err = generatePayment(htlcAmt, htlcAmt, 5, mockBlob)
 	if err != nil {
 		t.Fatalf("unable to create payment: %v", err)
 	}
@@ -1998,7 +1997,7 @@ func TestChannelLinkBandwidthConsistency(t *testing.T) {
 	}
 
 	htlc.ID = 0
-	bobIndex, err = bobChannel.AddHTLC(htlc, nil)
+	_, err = bobChannel.AddHTLC(htlc, nil)
 	if err != nil {
 		t.Fatalf("unable to add htlc: %v", err)
 	}
@@ -2104,7 +2103,7 @@ func TestChannelLinkBandwidthConsistency(t *testing.T) {
 	// HTLC we add, hence it should have an ID of 1 (Alice's channel
 	// link will set this automatically for her side).
 	htlc.ID = 1
-	bobIndex, err = bobChannel.AddHTLC(htlc, nil)
+	_, err = bobChannel.AddHTLC(htlc, nil)
 	if err != nil {
 		t.Fatalf("unable to add htlc: %v", err)
 	}
@@ -4097,7 +4096,6 @@ func restartLink(aliceChannel *lnwallet.LightningChannel, aliceSwitch *Switch,
 		DebugHTLC: len(hodlFlags) > 0,
 	}
 
-	const startingHeight = 100
 	aliceLink := NewChannelLink(aliceCfg, aliceChannel)
 	if err := aliceSwitch.AddLink(aliceLink); err != nil {
 		return nil, nil, nil, err
@@ -4133,6 +4131,9 @@ func generateHtlc(t *testing.T, coreLink *channelLink,
 		},
 	}
 	blob, err := generateRoute(hops...)
+	if err != nil {
+		t.Fatalf("unable to generate route: %v", err)
+	}
 	invoice, htlc, err := generatePayment(htlcAmt, htlcAmt, 144,
 		blob)
 	if err != nil {
@@ -4972,7 +4973,6 @@ func TestChannelLinkFail(t *testing.T) {
 	}
 
 	const chanAmt = dcrutil.AtomsPerCoin * 5
-	const chanReserve = 0
 
 	// Execute each test case.
 	for i, test := range testCases {

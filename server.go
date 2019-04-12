@@ -372,7 +372,7 @@ func newServer(listenAddrs []net.Addr, chanDB *channeldb.DB, cc *chainControl,
 			// If we were not able to discover a UPnP enabled device
 			// on the local network, we'll fall back to attempting
 			// to discover a NAT-PMP enabled device.
-			srvrLog.Errorf("Unable to discover a UPnP enabled "+
+			srvrLog.Errorf("unable to discover a UPnP enabled "+
 				"device on the local network: %v", err)
 
 			srvrLog.Info("Scanning local network for a NAT-PMP " +
@@ -380,7 +380,7 @@ func newServer(listenAddrs []net.Addr, chanDB *channeldb.DB, cc *chainControl,
 
 			pmp, err := nat.DiscoverPMP(discoveryTimeout)
 			if err != nil {
-				err := fmt.Errorf("Unable to discover a "+
+				err := fmt.Errorf("unable to discover a "+
 					"NAT-PMP enabled device on the local "+
 					"network: %v", err)
 				srvrLog.Error(err)
@@ -432,9 +432,7 @@ func newServer(listenAddrs []net.Addr, chanDB *channeldb.DB, cc *chainControl,
 		return nil, err
 	}
 	selfAddrs := make([]net.Addr, 0, len(externalIPs))
-	for _, ip := range externalIPs {
-		selfAddrs = append(selfAddrs, ip)
-	}
+	selfAddrs = append(selfAddrs, externalIPs...)
 
 	// If we were requested to route connections through Tor and to
 	// automatically create an onion service, we'll initiate our Tor
@@ -1569,8 +1567,7 @@ func (s *server) initTorController() error {
 		},
 	)
 	if err != nil {
-		return fmt.Errorf("Unable to generate new node "+
-			"announcement: %v", err)
+		return fmt.Errorf("unable to generate new node announcement: %v", err)
 	}
 
 	// Finally, we'll update the on-disk version of our announcement so it
@@ -2042,7 +2039,7 @@ func (s *server) nextPeerBackoff(pubStr string,
 	// The peer succeeded in starting. If the connection didn't last long
 	// enough to be considered stable, we'll continue to back off retries
 	// with this peer.
-	connDuration := time.Now().Sub(startTime)
+	connDuration := time.Since(startTime)
 	if connDuration < defaultStableConnDuration {
 		return computeNextBackoff(backoff)
 	}

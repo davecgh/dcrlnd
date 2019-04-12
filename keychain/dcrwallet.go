@@ -102,12 +102,12 @@ func (b *WalletKeyRing) keyDescriptorForAddress(addr dcrutil.Address) (KeyDescri
 
 	pubAddrInfo, is := addrInfo.(udb.ManagedPubKeyAddress)
 	if !is {
-		return emptyKeyDesc, fmt.Errorf("Generated address is not a ManagedPubKeyAddress")
+		return emptyKeyDesc, fmt.Errorf("generated address is not a ManagedPubKeyAddress")
 	}
 
 	pubKey, is := pubAddrInfo.PubKey().(*secp256k1.PublicKey)
 	if !is {
-		return emptyKeyDesc, fmt.Errorf("Generated address is not a secp256k1 address")
+		return emptyKeyDesc, fmt.Errorf("generated address is not a secp256k1 address")
 	}
 
 	return KeyDescriptor{

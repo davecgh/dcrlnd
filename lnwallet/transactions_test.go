@@ -227,11 +227,10 @@ func newTestContext() (tc *testContext, err error) {
 	}
 
 	htlcData := []struct {
-		incoming    bool
-		amount      lnwire.MilliAtom
-		expiry      uint32
-		preimage    string
-		paymentHash PaymentHash
+		incoming bool
+		amount   lnwire.MilliAtom
+		expiry   uint32
+		preimage string
 	}{
 		{
 			incoming: true,
@@ -795,7 +794,7 @@ func TestCommitmentAndHTLCTransactions(t *testing.T) {
 		}
 
 		// Build required HTLC structs from raw test vector data.
-		htlcs := make([]channeldb.HTLC, len(test.htlcDescs), len(test.htlcDescs))
+		htlcs := make([]channeldb.HTLC, len(test.htlcDescs))
 		for i, htlcDesc := range test.htlcDescs {
 			htlcs[i], err = tc.getHTLC(i, &htlcDesc)
 			if err != nil {

@@ -26,8 +26,6 @@ import (
 )
 
 var (
-	privPass = []byte("private-test")
-
 	// For simplicity a single priv key controls all of our test outputs.
 	testWalletPrivKey = []byte{
 		0x2b, 0xd8, 0x06, 0xc9, 0x7f, 0x0e, 0x00, 0xaf,
@@ -61,10 +59,6 @@ var (
 		0x76, 0xa9, 0x14, 0x11, 0x00, 0x00, 0x00, 0x00,
 		0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
 		0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xac}
-
-	// The number of confirmations required to consider any created channel
-	// open.
-	numReqConfs = uint16(1)
 
 	// A serializable txn for testing funding txn.
 	testTx = &wire.MsgTx{
@@ -229,12 +223,18 @@ func CreateTestChannels() (*LightningChannel, *LightningChannel, func(), error) 
 	}
 
 	alicePath, err := ioutil.TempDir("", "alicedb")
+	if err != nil {
+		return nil, nil, nil, err
+	}
 	dbAlice, err := channeldb.Open(alicePath)
 	if err != nil {
 		return nil, nil, nil, err
 	}
 
 	bobPath, err := ioutil.TempDir("", "bobdb")
+	if err != nil {
+		return nil, nil, nil, err
+	}
 	dbBob, err := channeldb.Open(bobPath)
 	if err != nil {
 		return nil, nil, nil, err
@@ -422,7 +422,7 @@ func (m *mockSigner) SignOutputRaw(tx *wire.MsgTx, signDesc *SignDescriptor) ([]
 	hash160 := dcrutil.Hash160(pubkey.SerializeCompressed())
 	privKey := m.findKey(hash160, signDesc.SingleTweak, signDesc.DoubleTweak)
 	if privKey == nil {
-		return nil, fmt.Errorf("Mock signer does not have key")
+		return nil, fmt.Errorf("mock signer does not have key")
 	}
 
 	sig, err := txscript.RawTxInSignature(tx, signDesc.InputIndex,
@@ -446,7 +446,7 @@ func (m *mockSigner) ComputeInputScript(tx *wire.MsgTx, signDesc *SignDescriptor
 		privKey := m.findKey(addresses[0].ScriptAddress(), signDesc.SingleTweak,
 			signDesc.DoubleTweak)
 		if privKey == nil {
-			return nil, fmt.Errorf("Mock signer does not have key for "+
+			return nil, fmt.Errorf("mock signer does not have key for "+
 				"address %v", addresses[0])
 		}
 
@@ -459,7 +459,7 @@ func (m *mockSigner) ComputeInputScript(tx *wire.MsgTx, signDesc *SignDescriptor
 		return &InputScript{ScriptSig: scriptSig}, nil
 
 	default:
-		return nil, fmt.Errorf("Unexpected script type: %v", scriptType)
+		return nil, fmt.Errorf("unexpected script type: %v", scriptType)
 	}
 }
 

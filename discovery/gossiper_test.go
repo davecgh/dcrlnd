@@ -38,10 +38,6 @@ var (
 	_, _ = testSig.R.SetString("63724406601629180062774974542967536251589935445068131219452686511677818569431", 10)
 	_, _ = testSig.S.SetString("18801056069249825825291287104931333862866033135609736119018462340006816851118", 10)
 
-	inputStr = "147caa76786596590baa4e98f5d9f48b86c7765e489f7a6ff3360fe5c674360b"
-	sha, _   = chainhash.NewHashFromStr(inputStr)
-	outpoint = wire.NewOutPoint(sha, 0, 0)
-
 	bitcoinKeyPriv1, _ = secp256k1.GeneratePrivateKey()
 	bitcoinKeyPub1     = bitcoinKeyPriv1.PubKey()
 

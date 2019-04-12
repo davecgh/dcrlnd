@@ -167,15 +167,15 @@ func (b *DcrWallet) ComputeInputScript(tx *wire.MsgTx,
 	// Fetch the private key for the given wallet address.
 	privKeyWifStr, err := b.wallet.DumpWIFPrivateKey(walletAddr.Address())
 	if err != nil {
-		return nil, fmt.Errorf("Invalid wif string for address: %v", err)
+		return nil, fmt.Errorf("invalid wif string for address: %v", err)
 	}
 	privKeyWif, err := dcrutil.DecodeWIF(privKeyWifStr)
 	if err != nil {
-		return nil, fmt.Errorf("Error decoding wif string for address: %v", err)
+		return nil, fmt.Errorf("error decoding wif string for address: %v", err)
 	}
 	privKey, isSecp := privKeyWif.PrivKey.(*secp256k1.PrivateKey)
 	if !isSecp {
-		return nil, fmt.Errorf("Private key returned is not secp256k1")
+		return nil, fmt.Errorf("private key returned is not secp256k1")
 	}
 
 	// If a tweak (single or double) is specified, then we'll need to use
