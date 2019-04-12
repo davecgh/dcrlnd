@@ -46,8 +46,8 @@ desirable features. First, we start with the following plaintext seed:
 The version field is for wallets to be able to know how to re-derive
 the keys of the wallet.
 
-The 2 byte timestamp is expressed in Bitcoin Days Genesis, meaning that
-the number of days since the timestamp in Bitcoin’s genesis block. This
+The 2 byte timestamp is expressed in Decred Days Genesis, meaning that
+the number of days since the timestamp in Decred’s genesis block. This
 allow us to save space, and also avoid using a wasteful level of
 granularity. With the currently, this can express time up until 2188.
 

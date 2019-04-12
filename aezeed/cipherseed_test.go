@@ -33,7 +33,7 @@ var (
 	version0TestVectors = []TestVector{
 		{
 			version:  0,
-			time:     BitcoinGenesisDate,
+			time:     DecredGenesisDate,
 			entropy:  testEntropy,
 			salt:     testSalt,
 			password: []byte{},
@@ -52,12 +52,12 @@ var (
 			salt:     testSalt,
 			password: []byte("!very_safe_55345_password*"),
 			expectedMnemonic: [NummnemonicWords]string{
-				"able", "tree", "stool", "crush", "transfer", "cloud",
-				"cross", "three", "profit", "outside", "hen", "citizen",
-				"plate", "ride", "require", "leg", "siren", "drum",
-				"success", "suggest", "drink", "require", "fiscal", "upgrade",
+				"absorb", "life", "portion", "oxygen", "stock", "pottery",
+				"soup", "build", "ugly", "jeans", "small", "uniform",
+				"letter", "voyage", "spirit", "age", "fury", "entire",
+				"success", "suggest", "drink", "office", "view", "dizzy",
 			},
-			expectedBirthday: 3365,
+			expectedBirthday: 773,
 		},
 	}
 )
@@ -466,7 +466,7 @@ func TestSeedEncodeDecode(t *testing.T) {
 		now := time.Unix(nowInt, 0)
 		seed := CipherSeed{
 			InternalVersion: version,
-			Birthday:        uint16(now.Sub(BitcoinGenesisDate) / (time.Hour * 24)),
+			Birthday:        uint16(now.Sub(DecredGenesisDate) / (time.Hour * 24)),
 			Entropy:         entropy,
 		}
 
